@@ -1,39 +1,70 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { mockRequests, mockRequestStatuses } from '@/data/mock-requests'
+import { createClient } from '@/lib/supabase/client'
+import { Request, RequestStatus } from '@/types/requests'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 export default function AdminRequestsPage() {
+  const [requests, setRequests] = useState<Request[]>([])
+  const [statuses, setStatuses] = useState<RequestStatus[]>([])
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  const filteredRequests = mockRequests.filter((req) => {
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const [{ data: reqs }, { data: sts }] = await Promise.all([
+        supabase
+          .from('requests')
+          .select('*, profiles!requests_client_id_fkey(full_name), request_statuses(id, name, color)')
+          .order('created_at', { ascending: false }),
+        supabase.from('request_statuses').select('*').order('order_index'),
+      ])
+      setStatuses(
+        (sts ?? []).map((s) => ({
+          id: s.id, name: s.name, color: s.color,
+          orderIndex: s.order_index, isDefault: s.is_default, createdAt: s.created_at,
+        }))
+      )
+      setRequests(
+        (reqs ?? []).map((r) => ({
+          id: r.id,
+          clientId: r.client_id,
+          clientName: (r.profiles as { full_name: string } | null)?.full_name ?? '',
+          type: r.type,
+          statusId: r.status_id,
+          status: r.request_statuses as RequestStatus,
+          urgency: r.urgency ?? 'normal',
+          pageSection: r.page_section ?? undefined,
+          changeDescription: r.change_description ?? undefined,
+          productTitle: r.product_title ?? undefined,
+          productPrice: r.product_price ?? undefined,
+          productCategory: r.product_category ?? undefined,
+          productDescription: r.product_description ?? undefined,
+          implementationDescription: r.implementation_description ?? undefined,
+          adminNotes: r.admin_notes ?? undefined,
+          assignedTo: r.assigned_to ?? undefined,
+          attachments: [],
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        }))
+      )
+    }
+    load()
+  }, [])
+
+  const filteredRequests = requests.filter((req) => {
     if (typeFilter !== 'all' && req.type !== typeFilter) return false
     if (statusFilter !== 'all' && req.statusId !== statusFilter) return false
     return true
   })
 
-  const getStatusInfo = (statusId: string) => {
-    return mockRequestStatuses.find((s) => s.id === statusId)
-  }
+  const getStatusInfo = (statusId: string) => statuses.find((s) => s.id === statusId)
 
   return (
     <div className="space-y-6">
@@ -66,10 +97,8 @@ export default function AdminRequestsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  {mockRequestStatuses.map((status) => (
-                    <SelectItem key={status.id} value={status.id}>
-                      {status.name}
-                    </SelectItem>
+                  {statuses.map((status) => (
+                    <SelectItem key={status.id} value={status.id}>{status.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

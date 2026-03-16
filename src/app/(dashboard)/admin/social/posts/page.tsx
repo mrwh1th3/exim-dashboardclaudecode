@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { mockPosts } from '@/data/mock-posts'
-import { mockClients } from '@/data/mock-clients'
-import { PostStatus, Platform } from '@/types/social'
+import { useState, useEffect, useMemo } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { SocialPost, PostStatus, Platform } from '@/types/social'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,11 +28,46 @@ const platformColors: Record<string, string> = {
   linkedin: 'bg-indigo-100 text-indigo-800',
 }
 
+interface ClientOption { id: string; fullName: string }
+
 export default function PostsListPage() {
-  const [posts, setPosts] = useState(mockPosts)
+  const [posts, setPosts] = useState<SocialPost[]>([])
+  const [clients, setClients] = useState<ClientOption[]>([])
   const [filterClient, setFilterClient] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterPlatform, setFilterPlatform] = useState<string>('all')
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const [{ data: postsData }, { data: clientsData }] = await Promise.all([
+        supabase
+          .from('posts')
+          .select('*, profiles!posts_client_id_fkey(full_name)')
+          .order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, full_name').eq('role', 'client').order('full_name'),
+      ])
+      setClients((clientsData ?? []).map((c) => ({ id: c.id, fullName: c.full_name ?? '' })))
+      setPosts(
+        (postsData ?? []).map((p) => ({
+          id: p.id,
+          clientId: p.client_id,
+          clientName: (p.profiles as { full_name: string } | null)?.full_name ?? '',
+          title: p.title ?? undefined,
+          content: p.content ?? '',
+          mediaUrls: p.media_urls ?? [],
+          platforms: p.platforms ?? [],
+          scheduledDate: p.scheduled_date ?? undefined,
+          scheduledTime: p.scheduled_time ?? undefined,
+          status: p.status as PostStatus,
+          createdBy: p.created_by,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+        }))
+      )
+    }
+    load()
+  }, [])
 
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
@@ -44,18 +78,12 @@ export default function PostsListPage() {
     })
   }, [posts, filterClient, filterStatus, filterPlatform])
 
-  const handleApprove = (postId: string) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, status: 'approved' as PostStatus, updatedAt: new Date().toISOString() } : p))
-    )
-    toast.success('Post aprobado')
-  }
-
-  const handleReject = (postId: string) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, status: 'rejected' as PostStatus, updatedAt: new Date().toISOString() } : p))
-    )
-    toast.success('Post rechazado')
+  const updateStatus = async (postId: string, status: PostStatus) => {
+    const supabase = createClient()
+    const { error } = await supabase.from('posts').update({ status, updated_at: new Date().toISOString() }).eq('id', postId)
+    if (error) { toast.error('Error al actualizar'); return }
+    setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, status, updatedAt: new Date().toISOString() } : p))
+    toast.success(status === 'approved' ? 'Post aprobado' : 'Post rechazado')
   }
 
   return (
@@ -65,7 +93,6 @@ export default function PostsListPage() {
         <p className="text-muted-foreground">Gestiona todas las publicaciones de redes sociales</p>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <Select value={filterClient} onValueChange={setFilterClient}>
           <SelectTrigger className="w-52">
@@ -73,10 +100,8 @@ export default function PostsListPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los clientes</SelectItem>
-            {mockClients.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.fullName}
-              </SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.fullName}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -87,9 +112,7 @@ export default function PostsListPage() {
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
             {Object.entries(statusBadgeMap).map(([key, { label }]) => (
-              <SelectItem key={key} value={key}>
-                {label}
-              </SelectItem>
+              <SelectItem key={key} value={key}>{label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -108,7 +131,6 @@ export default function PostsListPage() {
         </Select>
       </div>
 
-      {/* Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -146,19 +168,14 @@ export default function PostsListPage() {
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
                           {post.platforms.map((p) => (
-                            <span
-                              key={p}
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${platformColors[p] ?? ''}`}
-                            >
+                            <span key={p} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${platformColors[p] ?? ''}`}>
                               {p}
                             </span>
                           ))}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {post.scheduledDate
-                          ? `${post.scheduledDate} ${post.scheduledTime ?? ''}`
-                          : '-'}
+                        {post.scheduledDate ? `${post.scheduledDate} ${post.scheduledTime ?? ''}` : '-'}
                       </TableCell>
                       <TableCell>
                         <Badge variant={badgeConfig.variant} className={badgeConfig.className}>
@@ -172,20 +189,10 @@ export default function PostsListPage() {
                           </Button>
                           {(post.status === 'pending_approval' || post.status === 'draft') && (
                             <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-green-600 hover:text-green-700"
-                                onClick={() => handleApprove(post.id)}
-                              >
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700" onClick={() => updateStatus(post.id, 'approved')}>
                                 <CheckCircle className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-red-600 hover:text-red-700"
-                                onClick={() => handleReject(post.id)}
-                              >
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => updateStatus(post.id, 'rejected')}>
                                 <XCircle className="h-4 w-4" />
                               </Button>
                             </>

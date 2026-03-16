@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
-import { mockPlans, mockClientSubscriptions, mockInvoices } from '@/data/mock-subscriptions'
+import { createClient } from '@/lib/supabase/client'
+import { SubscriptionPlan } from '@/types/subscriptions'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,15 +17,55 @@ import { Check, MessageCircle, AlertCircle, ArrowRightLeft, XCircle } from 'luci
 import { BorderBeam } from '@/components/ui/border-beam'
 import { NumberTicker } from '@/components/ui/number-ticker'
 
+interface Sub { id: string; planId: string; status: string; currentPeriodStart?: string; currentPeriodEnd?: string }
+interface Invoice { id: string; amount: number; currency: string; status: string; periodStart: string; periodEnd: string; paidAt?: string; createdAt: string }
+
 export default function ClientSubscriptionPage() {
   const { user } = useAuthStore()
+  const router = useRouter()
+  const [subscription, setSubscription] = useState<Sub | null>(null)
+  const [plan, setPlan] = useState<SubscriptionPlan | null>(null)
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
+  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [changePlanOpen, setChangePlanOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
 
-  const subscription = mockClientSubscriptions.find((s) => s.clientId === user?.id)
-  const plan = subscription ? mockPlans.find((p) => p.id === subscription.planId) : null
-  const clientInvoices = mockInvoices.filter((inv) => inv.clientId === user?.id)
+  useEffect(() => {
+    if (!user?.id) return
+    async function load() {
+      const supabase = createClient()
+      const [{ data: subData }, { data: plansData }, { data: invoicesData }] = await Promise.all([
+        supabase.from('client_subscriptions').select('*').eq('client_id', user!.id).eq('status', 'active').maybeSingle(),
+        supabase.from('subscription_plans').select('*').eq('is_active', true).order('price'),
+        supabase.from('invoices').select('*').eq('client_id', user!.id).order('created_at', { ascending: false }),
+      ])
+      const mappedPlans: SubscriptionPlan[] = (plansData ?? []).map((p) => ({
+        id: p.id, name: p.name, description: p.description ?? undefined,
+        price: p.price, currency: p.currency, interval: p.interval,
+        features: p.features ?? [], isActive: p.is_active,
+        stripePriceId: p.stripe_price_id ?? undefined, createdAt: p.created_at,
+      }))
+      setPlans(mappedPlans)
+      if (subData) {
+        const sub: Sub = {
+          id: subData.id, planId: subData.plan_id, status: subData.status,
+          currentPeriodStart: subData.current_period_start ?? undefined,
+          currentPeriodEnd: subData.current_period_end ?? undefined,
+        }
+        setSubscription(sub)
+        setPlan(mappedPlans.find((p) => p.id === sub.planId) ?? null)
+      }
+      setInvoices(
+        (invoicesData ?? []).map((inv) => ({
+          id: inv.id, amount: inv.amount, currency: inv.currency, status: inv.status,
+          periodStart: inv.period_start, periodEnd: inv.period_end,
+          paidAt: inv.paid_at ?? undefined, createdAt: inv.created_at,
+        }))
+      )
+    }
+    load()
+  }, [user?.id])
 
   if (!subscription || !plan) {
     return (
@@ -40,28 +82,35 @@ export default function ClientSubscriptionPage() {
   }
 
   const periodStart = subscription.currentPeriodStart
-    ? new Date(subscription.currentPeriodStart).toLocaleDateString('es-MX', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
+    ? new Date(subscription.currentPeriodStart).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
     : '-'
   const periodEnd = subscription.currentPeriodEnd
-    ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
+    ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
     : '-'
 
-  const handleChangePlan = (planId: string) => {
-    const selectedPlan = mockPlans.find((p) => p.id === planId)
-    toast.success(`Solicitud de cambio a plan "${selectedPlan?.name}" enviada`)
+  const handleChangePlan = async (planId: string) => {
+    const selectedPlan = plans.find((p) => p.id === planId)
+    if (!selectedPlan?.stripePriceId) { toast.error('Este plan no está disponible'); return }
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId, clientId: user?.id }),
+    })
+    const { url } = await res.json()
+    if (url) router.push(url)
+    else toast.error('Error al crear sesión de pago')
     setChangePlanOpen(false)
   }
 
-  const handleCancelSubscription = () => {
-    toast.success('Solicitud de cancelación enviada. Nos pondremos en contacto contigo.')
+  const handleCancelSubscription = async () => {
+    const res = await fetch('/api/stripe/portal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId: user?.id }),
+    })
+    const { url } = await res.json()
+    if (url) router.push(url)
+    else toast.success('Solicitud de cancelación enviada. Nos pondremos en contacto contigo.')
     setCancelOpen(false)
     setCancelReason('')
   }
@@ -73,7 +122,6 @@ export default function ClientSubscriptionPage() {
         <p className="text-muted-foreground">Detalles de tu plan actual</p>
       </div>
 
-      {/* Current Plan Card */}
       <Card className="relative overflow-hidden">
         <BorderBeam colorFrom="#d86226" colorTo="#7e230c" duration={8} />
         <CardHeader>
@@ -82,14 +130,7 @@ export default function ClientSubscriptionPage() {
               <CardTitle className="text-xl">{plan.name}</CardTitle>
               {plan.description && <CardDescription>{plan.description}</CardDescription>}
             </div>
-            <Badge
-              variant="default"
-              className={
-                subscription.status === 'active'
-                  ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                  : 'bg-red-100 text-red-800 hover:bg-red-100'
-              }
-            >
+            <Badge variant="default" className={subscription.status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'}>
               {subscription.status === 'active' ? 'Activo' : 'Inactivo'}
             </Badge>
           </div>
@@ -99,7 +140,6 @@ export default function ClientSubscriptionPage() {
             <span className="text-4xl font-bold">$<NumberTicker value={plan.price} /></span>
             <span className="text-muted-foreground ml-1">MXN/mes</span>
           </div>
-
           <div>
             <h4 className="text-sm font-medium mb-3">Características incluidas</h4>
             <ul className="space-y-2">
@@ -111,17 +151,12 @@ export default function ClientSubscriptionPage() {
               ))}
             </ul>
           </div>
-
           <div className="rounded-lg bg-muted/50 p-4">
-            <p className="text-sm">
-              <span className="font-medium">Periodo actual: </span>
-              {periodStart} - {periodEnd}
-            </p>
+            <p className="text-sm"><span className="font-medium">Periodo actual: </span>{periodStart} - {periodEnd}</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Billing History */}
       <div>
         <h3 className="text-lg font-semibold mb-3">Historial de Facturación</h3>
         <Card>
@@ -136,37 +171,20 @@ export default function ClientSubscriptionPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clientInvoices.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                      No hay facturas registradas
-                    </TableCell>
-                  </TableRow>
+                {invoices.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No hay facturas registradas</TableCell></TableRow>
                 ) : (
-                  clientInvoices.map((inv) => (
+                  invoices.map((inv) => (
                     <TableRow key={inv.id}>
-                      <TableCell className="text-sm">
-                        {new Date(inv.createdAt).toLocaleDateString('es-MX')}
-                      </TableCell>
+                      <TableCell className="text-sm">{new Date(inv.createdAt).toLocaleDateString('es-MX')}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(inv.periodStart).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })}
                         {' - '}
                         {new Date(inv.periodEnd).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })}
                       </TableCell>
-                      <TableCell className="text-sm font-medium">
-                        ${inv.amount.toLocaleString()} MXN
-                      </TableCell>
+                      <TableCell className="text-sm font-medium">${inv.amount.toLocaleString()} MXN</TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            inv.status === 'paid'
-                              ? 'bg-green-100 text-green-800 border-green-200'
-                              : inv.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                              : 'bg-red-100 text-red-800 border-red-200'
-                          }
-                        >
+                        <Badge variant="outline" className={inv.status === 'paid' ? 'bg-green-100 text-green-800 border-green-200' : inv.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-red-100 text-red-800 border-red-200'}>
                           {inv.status === 'paid' ? 'Pagado' : inv.status === 'pending' ? 'Pendiente' : 'Fallido'}
                         </Badge>
                       </TableCell>
@@ -179,17 +197,12 @@ export default function ClientSubscriptionPage() {
         </Card>
       </div>
 
-      {/* Manage Subscription */}
       <div>
         <h3 className="text-lg font-semibold mb-3">Gestionar Suscripción</h3>
         <div className="flex flex-wrap gap-3">
-          {/* Change Plan Dialog */}
           <Dialog open={changePlanOpen} onOpenChange={setChangePlanOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline">
-                <ArrowRightLeft className="mr-2 h-4 w-4" />
-                Cambiar Plan
-              </Button>
+              <Button variant="outline"><ArrowRightLeft className="mr-2 h-4 w-4" />Cambiar Plan</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
@@ -197,17 +210,12 @@ export default function ClientSubscriptionPage() {
                 <DialogDescription>Selecciona el plan al que deseas cambiar</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 md:grid-cols-2 py-4">
-                {mockPlans.filter((p) => p.isActive).map((p) => (
-                  <Card
-                    key={p.id}
-                    className={p.id === plan.id ? 'border-primary ring-2 ring-primary/20' : ''}
-                  >
+                {plans.map((p) => (
+                  <Card key={p.id} className={p.id === plan.id ? 'border-primary ring-2 ring-primary/20' : ''}>
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base">{p.name}</CardTitle>
-                        {p.id === plan.id && (
-                          <Badge variant="default" className="text-xs">Plan actual</Badge>
-                        )}
+                        {p.id === plan.id && <Badge variant="default" className="text-xs">Plan actual</Badge>}
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -218,23 +226,12 @@ export default function ClientSubscriptionPage() {
                       <ul className="space-y-1 mb-4">
                         {p.features.slice(0, 4).map((feature, i) => (
                           <li key={i} className="flex items-start gap-1.5 text-xs">
-                            <Check className="h-3 w-3 text-green-500 mt-0.5 shrink-0" />
-                            <span>{feature}</span>
+                            <Check className="h-3 w-3 text-green-500 mt-0.5 shrink-0" /><span>{feature}</span>
                           </li>
                         ))}
-                        {p.features.length > 4 && (
-                          <li className="text-xs text-muted-foreground">
-                            +{p.features.length - 4} más...
-                          </li>
-                        )}
+                        {p.features.length > 4 && <li className="text-xs text-muted-foreground">+{p.features.length - 4} más...</li>}
                       </ul>
-                      <Button
-                        variant={p.id === plan.id ? 'secondary' : 'default'}
-                        size="sm"
-                        className="w-full"
-                        disabled={p.id === plan.id}
-                        onClick={() => handleChangePlan(p.id)}
-                      >
+                      <Button variant={p.id === plan.id ? 'secondary' : 'default'} size="sm" className="w-full" disabled={p.id === plan.id} onClick={() => handleChangePlan(p.id)}>
                         {p.id === plan.id ? 'Plan actual' : 'Seleccionar'}
                       </Button>
                     </CardContent>
@@ -244,43 +241,27 @@ export default function ClientSubscriptionPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Cancel Subscription Dialog */}
           <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
             <DialogTrigger asChild>
-              <Button variant="destructive">
-                <XCircle className="mr-2 h-4 w-4" />
-                Cancelar Suscripción
-              </Button>
+              <Button variant="destructive"><XCircle className="mr-2 h-4 w-4" />Cancelar Suscripción</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Cancelar Suscripción</DialogTitle>
-                <DialogDescription>
-                  Esta acción cancelará tu suscripción al final del período actual. Perderás acceso a todas las funcionalidades de tu plan.
-                </DialogDescription>
+                <DialogDescription>Esta acción cancelará tu suscripción al final del período actual.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
-                  <strong>Advertencia:</strong> Al cancelar tu suscripción, tu sitio web y servicios asociados dejarán de estar disponibles al finalizar el período de facturación actual ({periodEnd}).
+                  <strong>Advertencia:</strong> Al cancelar, perderás acceso a todas las funcionalidades al finalizar el período de facturación actual ({periodEnd}).
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cancel-reason">Motivo de cancelación (opcional)</Label>
-                  <Textarea
-                    id="cancel-reason"
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="Cuéntanos por qué deseas cancelar..."
-                    rows={4}
-                  />
+                  <Textarea id="cancel-reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Cuéntanos por qué deseas cancelar..." rows={4} />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setCancelOpen(false)}>
-                  Mantener suscripción
-                </Button>
-                <Button variant="destructive" onClick={handleCancelSubscription}>
-                  Confirmar cancelación
-                </Button>
+                <Button variant="outline" onClick={() => setCancelOpen(false)}>Mantener suscripción</Button>
+                <Button variant="destructive" onClick={handleCancelSubscription}>Confirmar cancelación</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Poppins, Bebas_Neue } from "next/font/google";
+import { JetBrains_Mono, Bebas_Neue } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-const poppins = Poppins({
+const jetbrainsMono = JetBrains_Mono({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
@@ -29,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body
-        className={`${poppins.variable} ${bebasNeue.variable} antialiased`}
+        className={`${jetbrainsMono.variable} ${bebasNeue.variable} antialiased`}
       >
         <TooltipProvider>
           {children}

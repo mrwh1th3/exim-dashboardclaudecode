@@ -18,24 +18,14 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const success = await login(email, password)
-    if (success) {
+    const result = await login(email, password)
+    if (result.success) {
       const user = useAuthStore.getState().user
       toast.success(`Bienvenido, ${user?.fullName}`)
       router.push(user?.role === 'client' ? '/client' : '/admin')
     } else {
-      toast.error('Credenciales incorrectas')
+      toast.error(result.error ?? 'Credenciales incorrectas')
     }
-  }
-
-  const quickLogin = (role: 'admin' | 'editor' | 'client') => {
-    const emails = {
-      admin: 'admin@exim.com',
-      editor: 'editor@exim.com',
-      client: 'carlos@empresa1.com',
-    }
-    setEmail(emails[role])
-    setPassword('demo')
   }
 
   return (
@@ -88,22 +78,6 @@ export default function LoginPage() {
                 {isLoading ? 'Ingresando...' : 'Ingresar'}
               </Button>
             </form>
-
-            {/* Quick access for development */}
-            <div className="mt-6 border-t pt-4">
-              <p className="text-xs text-muted-foreground text-center mb-3">Acceso rápido (desarrollo)</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => quickLogin('admin')}>
-                  Admin
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => quickLogin('editor')}>
-                  Editor
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => quickLogin('client')}>
-                  Cliente
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
