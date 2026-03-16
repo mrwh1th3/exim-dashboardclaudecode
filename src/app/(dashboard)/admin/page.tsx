@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
-import { AnimatedList, AnimatedListItem } from '@/components/ui/animated-list'
+import { AnimatedList } from '@/components/ui/animated-list'
 import { mockRequests, mockRequestStatuses } from '@/data/mock-requests'
 
 const recentActivity = [
@@ -73,15 +73,13 @@ export default function AdminDashboardPage() {
           <CardContent>
             <AnimatedList delay={600} className="gap-0">
               {recentActivity.map((item) => (
-                <AnimatedListItem key={item.id}>
-                  <div className="flex items-center justify-between border-b py-3 last:border-0">
-                    <div>
-                      <p className="text-sm font-medium">{item.clientName}</p>
-                      <p className="text-xs text-muted-foreground">{item.action}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{item.date}</span>
+                <div key={item.id} className="flex items-center justify-between border-b py-3 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium">{item.clientName}</p>
+                    <p className="text-xs text-muted-foreground">{item.action}</p>
                   </div>
-                </AnimatedListItem>
+                  <span className="text-xs text-muted-foreground">{item.date}</span>
+                </div>
               ))}
             </AnimatedList>
           </CardContent>
