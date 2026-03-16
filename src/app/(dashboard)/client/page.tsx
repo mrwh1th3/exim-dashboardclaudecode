@@ -7,8 +7,10 @@ import { mockClientSubscriptions, mockPlans } from '@/data/mock-subscriptions'
 import { mockRequests } from '@/data/mock-requests'
 import { mockPosts } from '@/data/mock-posts'
 import { StatCard } from '@/components/shared/stat-card'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
+import { ShimmerButton } from '@/components/ui/shimmer-button'
+import { Meteors } from '@/components/ui/meteors'
 
 export default function ClientPortalPage() {
   const user = useAuthStore((state) => state.user)
@@ -30,7 +32,10 @@ export default function ClientPortalPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
-          Bienvenido, {user?.fullName ?? 'Cliente'}
+          Bienvenido,{' '}
+          <AnimatedGradientText colorFrom="#d86226" colorTo="#7e230c" speed={0.8}>
+            {user?.fullName ?? 'Cliente'}
+          </AnimatedGradientText>
         </h1>
         <p className="text-muted-foreground">
           Resumen de tu cuenta y servicios
@@ -63,41 +68,57 @@ export default function ClientPortalPage() {
         />
       </div>
 
-      <Card>
+      <Card className="relative overflow-hidden">
         <CardHeader>
           <CardTitle>Acciones Rápidas</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
             <Link href="/client/onboarding">
-              <Button variant="outline" className="w-full justify-between h-auto py-4">
+              <ShimmerButton
+                background="rgba(216,98,38,0.15)"
+                shimmerColor="#d86226"
+                borderRadius="8px"
+                className="w-full justify-between h-auto py-4 px-4 border-primary/20 text-foreground"
+              >
                 <div className="text-left">
                   <p className="font-semibold">Completar Onboarding</p>
                   <p className="text-xs text-muted-foreground">Continúa con tu proceso</p>
                 </div>
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+                <ArrowRight className="h-4 w-4 shrink-0" />
+              </ShimmerButton>
             </Link>
             <Link href="/client/requests/new">
-              <Button variant="outline" className="w-full justify-between h-auto py-4">
+              <ShimmerButton
+                background="rgba(216,98,38,0.15)"
+                shimmerColor="#d86226"
+                borderRadius="8px"
+                className="w-full justify-between h-auto py-4 px-4 border-primary/20 text-foreground"
+              >
                 <div className="text-left">
                   <p className="font-semibold">Nueva Solicitud</p>
                   <p className="text-xs text-muted-foreground">Envía un cambio o producto</p>
                 </div>
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+                <ArrowRight className="h-4 w-4 shrink-0" />
+              </ShimmerButton>
             </Link>
             <Link href="/client/social/calendar">
-              <Button variant="outline" className="w-full justify-between h-auto py-4">
+              <ShimmerButton
+                background="rgba(216,98,38,0.15)"
+                shimmerColor="#d86226"
+                borderRadius="8px"
+                className="w-full justify-between h-auto py-4 px-4 border-primary/20 text-foreground"
+              >
                 <div className="text-left">
                   <p className="font-semibold">Ver Calendario</p>
                   <p className="text-xs text-muted-foreground">Posts programados</p>
                 </div>
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+                <ArrowRight className="h-4 w-4 shrink-0" />
+              </ShimmerButton>
             </Link>
           </div>
         </CardContent>
+        <Meteors number={10} />
       </Card>
     </div>
   )

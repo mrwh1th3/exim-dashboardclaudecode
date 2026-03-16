@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent } from '@/components/ui/card'
+import { NumberTicker } from '@/components/ui/number-ticker'
 import { cn } from '@/lib/utils'
 
 interface StatCardProps {
@@ -13,13 +14,16 @@ interface StatCardProps {
 }
 
 export function StatCard({ title, value, description, icon, trend, className }: StatCardProps) {
+  const isNumeric = typeof value === 'number'
   return (
     <Card className={cn('', className)}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-2xl font-bold">
+              {isNumeric ? <NumberTicker value={value} /> : value}
+            </p>
             {description && <p className="text-xs text-muted-foreground">{description}</p>}
             {trend && (
               <p className={cn('text-xs font-medium', trend.value >= 0 ? 'text-green-600' : 'text-red-600')}>

@@ -12,6 +12,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
+import { AnimatedList, AnimatedListItem } from '@/components/ui/animated-list'
 import { mockRequests, mockRequestStatuses } from '@/data/mock-requests'
 
 const recentActivity = [
@@ -32,7 +34,11 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          <AnimatedGradientText colorFrom="#d86226" colorTo="#7e230c" speed={0.8}>
+            Dashboard
+          </AnimatedGradientText>
+        </h1>
         <p className="text-muted-foreground">Resumen general de la plataforma</p>
       </div>
 
@@ -65,17 +71,19 @@ export default function AdminDashboardPage() {
             <CardTitle>Actividad Reciente</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <AnimatedList delay={600} className="gap-0">
               {recentActivity.map((item) => (
-                <div key={item.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
-                  <div>
-                    <p className="text-sm font-medium">{item.clientName}</p>
-                    <p className="text-xs text-muted-foreground">{item.action}</p>
+                <AnimatedListItem key={item.id}>
+                  <div className="flex items-center justify-between border-b py-3 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{item.clientName}</p>
+                      <p className="text-xs text-muted-foreground">{item.action}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{item.date}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{item.date}</span>
-                </div>
+                </AnimatedListItem>
               ))}
-            </div>
+            </AnimatedList>
           </CardContent>
         </Card>
 

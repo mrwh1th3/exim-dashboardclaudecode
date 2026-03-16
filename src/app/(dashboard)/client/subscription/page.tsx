@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { Check, MessageCircle, AlertCircle, ArrowRightLeft, XCircle } from 'lucide-react'
+import { BorderBeam } from '@/components/ui/border-beam'
+import { NumberTicker } from '@/components/ui/number-ticker'
 
 export default function ClientSubscriptionPage() {
   const { user } = useAuthStore()
@@ -72,7 +74,8 @@ export default function ClientSubscriptionPage() {
       </div>
 
       {/* Current Plan Card */}
-      <Card>
+      <Card className="relative overflow-hidden">
+        <BorderBeam colorFrom="#d86226" colorTo="#7e230c" duration={8} />
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -93,7 +96,7 @@ export default function ClientSubscriptionPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <span className="text-4xl font-bold">${plan.price.toLocaleString()}</span>
+            <span className="text-4xl font-bold">$<NumberTicker value={plan.price} /></span>
             <span className="text-muted-foreground ml-1">MXN/mes</span>
           </div>
 

@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 import { Check, Lock, Circle, AlertCircle, FileText } from 'lucide-react'
+import { ShimmerButton } from '@/components/ui/shimmer-button'
 
 export default function ClientOnboardingPage() {
   const { user } = useAuthStore()
@@ -382,9 +383,15 @@ export default function ClientOnboardingPage() {
                       )}
                     </div>
                   ))}
-                <Button onClick={handleSubmitForm} className="w-full">
+                <ShimmerButton
+                  onClick={handleSubmitForm}
+                  background="rgba(216,98,38,0.9)"
+                  shimmerColor="#ffffff"
+                  borderRadius="8px"
+                  className="w-full justify-center"
+                >
                   Enviar formulario
-                </Button>
+                </ShimmerButton>
               </div>
             </>
           )}

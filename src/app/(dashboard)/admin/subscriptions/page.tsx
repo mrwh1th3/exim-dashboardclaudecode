@@ -20,6 +20,8 @@ import { StatCard } from '@/components/shared/stat-card'
 import { toast } from 'sonner'
 import { Plus, Edit, Trash2, Check, ToggleLeft, ToggleRight, DollarSign, Users, TrendingUp, ArrowUpRight, FileText } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
+import { ShineBorder } from '@/components/ui/shine-border'
+import { NumberTicker } from '@/components/ui/number-ticker'
 
 const revenueData = [
   { month: 'Oct', revenue: 4497 },
@@ -320,8 +322,13 @@ export default function SubscriptionsPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {plans.map((plan) => (
-              <Card key={plan.id}>
+            {plans.map((plan) => {
+              const isFeatured = plan.price >= 1999
+              return (
+              <Card key={plan.id} className="relative overflow-hidden">
+                {isFeatured && (
+                  <ShineBorder shineColor={['#d86226', '#7e230c', '#f59e0b']} duration={10} borderWidth={2} />
+                )}
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{plan.name}</CardTitle>
@@ -335,7 +342,7 @@ export default function SubscriptionsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="mb-4">
-                    <span className="text-3xl font-bold">${plan.price.toLocaleString()}</span>
+                    <span className="text-3xl font-bold">$<NumberTicker value={plan.price} /></span>
                     <span className="text-muted-foreground ml-1">MXN/mes</span>
                   </div>
                   <ul className="space-y-2 mb-4">
@@ -370,7 +377,8 @@ export default function SubscriptionsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              )
+            })}
           </div>
         </TabsContent>
 
