@@ -18,20 +18,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const productCategories = [
-  'Ropa',
-  'Zapatos',
-  'Bolsos',
-  'Accesorios',
-  'Electrónica',
-  'Hogar',
-  'Alimentos',
-  'Bebidas',
-  'Salud',
-  'Deportes',
-  'Otro',
-]
-
 export default function NewRequestPage() {
   const router = useRouter()
 
@@ -240,19 +226,13 @@ export default function NewRequestPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Categoría</Label>
-                  <Select value={productCategory} onValueChange={setProductCategory}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {productCategories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="productCategory">Categoría</Label>
+                  <Input
+                    id="productCategory"
+                    placeholder="Ej: Ropa, Electrónica, Alimentos..."
+                    value={productCategory}
+                    onChange={(e) => setProductCategory(e.target.value)}
+                  />
                 </div>
 
                 <div className="space-y-2">

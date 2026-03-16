@@ -1,4 +1,4 @@
-import { SubscriptionPlan, ClientSubscription } from '@/types/subscriptions'
+import { SubscriptionPlan, ClientSubscription, Invoice, RevenueMetrics } from '@/types/subscriptions'
 
 export const mockPlans: SubscriptionPlan[] = [
   {
@@ -8,6 +8,7 @@ export const mockPlans: SubscriptionPlan[] = [
     price: 499,
     currency: 'MXN',
     interval: 'monthly',
+    stripePriceId: 'price_1TBbs2GTAR8AbhoDuTBILVtL',
     features: [
       'Página web de hasta 5 secciones',
       'Dominio incluido (.com)',
@@ -26,6 +27,7 @@ export const mockPlans: SubscriptionPlan[] = [
     price: 999,
     currency: 'MXN',
     interval: 'monthly',
+    stripePriceId: 'price_1TBbs3GTAR8AbhoDp60axR66',
     features: [
       'Página web ilimitada',
       'Dominio incluido (.com)',
@@ -47,6 +49,7 @@ export const mockPlans: SubscriptionPlan[] = [
     price: 1999,
     currency: 'MXN',
     interval: 'monthly',
+    stripePriceId: 'price_1TBbs4GTAR8AbhoDga3xDJTi',
     features: [
       'Todo lo del plan Profesional',
       'Tienda en línea',
@@ -67,6 +70,7 @@ export const mockPlans: SubscriptionPlan[] = [
     price: 2499,
     currency: 'MXN',
     interval: 'monthly',
+    stripePriceId: 'price_1TBbs5GTAR8AbhoDwX4Y1DK0',
     features: [
       '12 posts al mes',
       'Diseño de contenido',
@@ -133,3 +137,36 @@ export const mockClientSubscriptions: ClientSubscription[] = [
     updatedAt: '2024-09-01T00:00:00Z',
   },
 ]
+
+// Invoices spanning last 6 months (Oct 2025 - Mar 2026)
+// Prices: basic=499, pro=999, ecommerce=1999, social=2499
+export const mockInvoices: Invoice[] = [
+  // Client 1 - Basic (499 MXN)
+  { id: 'inv-1', clientId: 'client-1', subscriptionId: 'sub-1', amount: 499, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_abc001', periodStart: '2025-10-01T00:00:00Z', periodEnd: '2025-11-01T00:00:00Z', paidAt: '2025-10-01T08:00:00Z', createdAt: '2025-10-01T00:00:00Z' },
+  { id: 'inv-2', clientId: 'client-1', subscriptionId: 'sub-1', amount: 499, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_abc002', periodStart: '2025-11-01T00:00:00Z', periodEnd: '2025-12-01T00:00:00Z', paidAt: '2025-11-01T09:15:00Z', createdAt: '2025-11-01T00:00:00Z' },
+  { id: 'inv-3', clientId: 'client-1', subscriptionId: 'sub-1', amount: 499, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_abc003', periodStart: '2025-12-01T00:00:00Z', periodEnd: '2026-01-01T00:00:00Z', paidAt: '2025-12-01T10:00:00Z', createdAt: '2025-12-01T00:00:00Z' },
+  { id: 'inv-4', clientId: 'client-1', subscriptionId: 'sub-1', amount: 499, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_abc004', periodStart: '2026-01-01T00:00:00Z', periodEnd: '2026-02-01T00:00:00Z', paidAt: '2026-01-02T08:30:00Z', createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'inv-5', clientId: 'client-1', subscriptionId: 'sub-1', amount: 499, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_abc005', periodStart: '2026-02-01T00:00:00Z', periodEnd: '2026-03-01T00:00:00Z', paidAt: '2026-02-01T07:45:00Z', createdAt: '2026-02-01T00:00:00Z' },
+  { id: 'inv-6', clientId: 'client-1', subscriptionId: 'sub-1', amount: 499, currency: 'MXN', status: 'pending', periodStart: '2026-03-01T00:00:00Z', periodEnd: '2026-04-01T00:00:00Z', createdAt: '2026-03-01T00:00:00Z' },
+  // Client 2 - E-commerce (1999 MXN)
+  { id: 'inv-7', clientId: 'client-2', subscriptionId: 'sub-2', amount: 1999, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_def001', periodStart: '2025-11-01T00:00:00Z', periodEnd: '2025-12-01T00:00:00Z', paidAt: '2025-11-01T10:00:00Z', createdAt: '2025-11-01T00:00:00Z' },
+  { id: 'inv-8', clientId: 'client-2', subscriptionId: 'sub-2', amount: 1999, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_def002', periodStart: '2025-12-01T00:00:00Z', periodEnd: '2026-01-01T00:00:00Z', paidAt: '2025-12-02T11:00:00Z', createdAt: '2025-12-01T00:00:00Z' },
+  { id: 'inv-9', clientId: 'client-2', subscriptionId: 'sub-2', amount: 1999, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_def003', periodStart: '2026-01-01T00:00:00Z', periodEnd: '2026-02-01T00:00:00Z', paidAt: '2026-01-01T09:00:00Z', createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'inv-10', clientId: 'client-2', subscriptionId: 'sub-2', amount: 1999, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_def004', periodStart: '2026-02-01T00:00:00Z', periodEnd: '2026-03-01T00:00:00Z', paidAt: '2026-02-03T08:00:00Z', createdAt: '2026-02-01T00:00:00Z' },
+  // Client 3 - Social (2499 MXN)
+  { id: 'inv-11', clientId: 'client-3', subscriptionId: 'sub-3', amount: 2499, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_ghi001', periodStart: '2025-12-10T00:00:00Z', periodEnd: '2026-01-10T00:00:00Z', paidAt: '2025-12-10T08:00:00Z', createdAt: '2025-12-10T00:00:00Z' },
+  { id: 'inv-12', clientId: 'client-3', subscriptionId: 'sub-3', amount: 2499, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_ghi002', periodStart: '2026-01-10T00:00:00Z', periodEnd: '2026-02-10T00:00:00Z', paidAt: '2026-01-10T09:30:00Z', createdAt: '2026-01-10T00:00:00Z' },
+  { id: 'inv-13', clientId: 'client-3', subscriptionId: 'sub-3', amount: 2499, currency: 'MXN', status: 'failed', stripeInvoiceId: 'in_ghi003', periodStart: '2026-02-10T00:00:00Z', periodEnd: '2026-03-10T00:00:00Z', createdAt: '2026-02-10T00:00:00Z' },
+  // Client 5 - Pro (999 MXN)
+  { id: 'inv-14', clientId: 'client-5', subscriptionId: 'sub-5', amount: 999, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_jkl001', periodStart: '2026-01-01T00:00:00Z', periodEnd: '2026-02-01T00:00:00Z', paidAt: '2026-01-01T10:00:00Z', createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'inv-15', clientId: 'client-5', subscriptionId: 'sub-5', amount: 999, currency: 'MXN', status: 'paid', stripeInvoiceId: 'in_jkl002', periodStart: '2026-02-01T00:00:00Z', periodEnd: '2026-03-01T00:00:00Z', paidAt: '2026-02-01T08:00:00Z', createdAt: '2026-02-01T00:00:00Z' },
+]
+
+// MRR = active subs: client-1 (499) + client-2 (1999) + client-3 (2499) + client-5 (999) = 5996
+export const mockRevenueMetrics: RevenueMetrics = {
+  mrr: 5996,
+  activeSubscriptions: 4,
+  totalRevenue: 89940,
+  growth: 12.5,
+  churnRate: 4.2,
+}

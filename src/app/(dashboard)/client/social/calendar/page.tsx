@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, AlertTriangle, ImageIcon } from 'lucide-react'
 import {
   startOfMonth,
   endOfMonth,
@@ -132,8 +132,9 @@ export default function ClientSocialCalendarPage() {
                       <button
                         key={post.id}
                         onClick={() => handlePostClick(post)}
-                        className={`w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight truncate cursor-pointer hover:opacity-80 transition-opacity ${statusColors[post.status]}`}
+                        className={`w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight truncate cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-0.5 ${statusColors[post.status]}`}
                       >
+                        {post.mediaUrls.length > 0 && <ImageIcon className="h-2.5 w-2.5 shrink-0" />}
                         {post.title || post.content.slice(0, 30)}
                       </button>
                     ))}
@@ -185,6 +186,19 @@ export default function ClientSocialCalendarPage() {
                   <h4 className="text-sm font-medium mb-1">Contenido</h4>
                   <p className="text-sm whitespace-pre-wrap text-muted-foreground">{selectedPost.content}</p>
                 </div>
+
+                {selectedPost.mediaUrls.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Imágenes</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedPost.mediaUrls.map((url, i) => (
+                        <div key={i} className="relative aspect-video rounded-lg overflow-hidden border">
+                          <img src={url} alt={`Media ${i + 1}`} className="object-cover w-full h-full" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

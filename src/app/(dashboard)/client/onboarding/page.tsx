@@ -1,14 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
-import {
-  mockClientFlows,
-  mockFlowTemplates,
-  mockFlowStages,
-  mockClientStageProgress,
-  mockFormTemplates,
-} from '@/data/mock-flows'
+import { useFlowsStore } from '@/stores/flows-store'
 import { FlowStage, ClientStageProgress, FormTemplate, FormField } from '@/types/onboarding'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,35 +18,48 @@ import { Check, Lock, Circle, AlertCircle, FileText } from 'lucide-react'
 
 export default function ClientOnboardingPage() {
   const { user } = useAuthStore()
+  const {
+    clientFlows,
+    flowTemplates,
+    flowStages,
+    clientStageProgress: allProgress,
+    formTemplates,
+    formSubmissions,
+    saveFormSubmission,
+    updateStageProgress,
+    updateClientFlowStatus,
+  } = useFlowsStore()
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedStage, setSelectedStage] = useState<FlowStage | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedForm, setSelectedForm] = useState<FormTemplate | null>(null)
+  const [formData, setFormData] = useState<Record<string, unknown>>({})
 
   const clientFlow = useMemo(() => {
-    return mockClientFlows.find((f) => f.clientId === user?.id)
-  }, [user?.id])
+    return clientFlows.find((f) => f.clientId === user?.id)
+  }, [clientFlows, user?.id])
 
   const flowTemplate = useMemo(() => {
     if (!clientFlow) return null
-    return mockFlowTemplates.find((t) => t.id === clientFlow.flowTemplateId) ?? null
-  }, [clientFlow])
+    return flowTemplates.find((t) => t.id === clientFlow.flowTemplateId) ?? null
+  }, [clientFlow, flowTemplates])
 
   const stages = useMemo(() => {
     if (!flowTemplate) return []
-    return mockFlowStages
+    return flowStages
       .filter((s) => s.flowTemplateId === flowTemplate.id)
       .sort((a, b) => a.orderIndex - b.orderIndex)
-  }, [flowTemplate])
+  }, [flowTemplate, flowStages])
 
   const stageProgress = useMemo(() => {
     if (!clientFlow) return new Map<string, ClientStageProgress>()
     const map = new Map<string, ClientStageProgress>()
-    mockClientStageProgress
+    allProgress
       .filter((p) => p.clientFlowId === clientFlow.id)
       .forEach((p) => map.set(p.stageId, p))
     return map
-  }, [clientFlow])
+  }, [clientFlow, allProgress])
 
   const getStageStatus = (stage: FlowStage) => {
     const progress = stageProgress.get(stage.id)
@@ -72,8 +79,13 @@ export default function ClientOnboardingPage() {
   }
 
   const handleOpenForm = (formId: string) => {
-    const form = mockFormTemplates.find((f) => f.id === formId)
-    if (form) {
+    const form = formTemplates.find((f) => f.id === formId)
+    if (form && clientFlow && selectedStage) {
+      // Pre-fill with existing submission data if available
+      const existing = formSubmissions.find(
+        (s) => s.clientFlowId === clientFlow.id && s.formTemplateId === formId && s.stageId === selectedStage.id
+      )
+      setFormData(existing?.data ?? {})
       setSelectedForm(form)
       setDialogOpen(false)
       setSheetOpen(true)
@@ -81,12 +93,39 @@ export default function ClientOnboardingPage() {
   }
 
   const handleSubmitForm = () => {
-    toast.success('Formulario enviado')
+    if (!clientFlow || !selectedStage || !selectedForm) return
+    saveFormSubmission({
+      id: `sub-${Date.now()}`,
+      clientFlowId: clientFlow.id,
+      formTemplateId: selectedForm.id,
+      stageId: selectedStage.id,
+      data: formData,
+      status: 'submitted',
+      submittedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+    // Mark stage as in_progress if not already completed
+    const currentStatus = stageProgress.get(selectedStage.id)?.status
+    if (currentStatus !== 'completed') {
+      updateStageProgress(clientFlow.id, selectedStage.id, 'in_progress')
+    }
+    // Mark flow as in_progress if not started
+    if (clientFlow.status === 'not_started') {
+      updateClientFlowStatus(clientFlow.id, 'in_progress')
+    }
+    toast.success('Formulario enviado exitosamente')
     setSheetOpen(false)
     setSelectedForm(null)
+    setFormData({})
   }
 
+  const updateField = useCallback((fieldId: string, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [fieldId]: value }))
+  }, [])
+
   const renderFormField = (field: FormField) => {
+    const value = formData[field.id]
     switch (field.type) {
       case 'text':
       case 'email':
@@ -96,16 +135,18 @@ export default function ClientOnboardingPage() {
           <Input
             type={field.type === 'phone' ? 'tel' : field.type === 'url' ? 'url' : field.type === 'email' ? 'email' : 'text'}
             placeholder={field.placeholder}
+            value={(value as string) ?? ''}
+            onChange={(e) => updateField(field.id, e.target.value)}
           />
         )
       case 'number':
-        return <Input type="number" placeholder={field.placeholder} />
+        return <Input type="number" placeholder={field.placeholder} value={(value as string) ?? ''} onChange={(e) => updateField(field.id, e.target.value)} />
       case 'textarea':
       case 'rich_text':
-        return <Textarea placeholder={field.placeholder} rows={4} />
+        return <Textarea placeholder={field.placeholder} rows={4} value={(value as string) ?? ''} onChange={(e) => updateField(field.id, e.target.value)} />
       case 'select':
         return (
-          <Select>
+          <Select value={(value as string) ?? ''} onValueChange={(v) => updateField(field.id, v)}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar..." />
             </SelectTrigger>
@@ -121,22 +162,31 @@ export default function ClientOnboardingPage() {
       case 'checkbox':
         return (
           <div className="space-y-2">
-            {field.options?.map((opt) => (
-              <label key={opt} className="flex items-center gap-2 text-sm">
-                <Checkbox />
-                <span>{opt}</span>
-              </label>
-            ))}
+            {field.options?.map((opt) => {
+              const checked = Array.isArray(value) ? (value as string[]).includes(opt) : false
+              return (
+                <label key={opt} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(c) => {
+                      const current = Array.isArray(value) ? (value as string[]) : []
+                      updateField(field.id, c ? [...current, opt] : current.filter((v) => v !== opt))
+                    }}
+                  />
+                  <span>{opt}</span>
+                </label>
+              )
+            })}
           </div>
         )
       case 'file_upload':
         return <Input type="file" className="cursor-pointer" />
       case 'color_picker':
-        return <Input type="color" className="h-10 w-20 p-1 cursor-pointer" />
+        return <Input type="color" className="h-10 w-20 p-1 cursor-pointer" value={(value as string) ?? '#000000'} onChange={(e) => updateField(field.id, e.target.value)} />
       case 'date_picker':
-        return <Input type="date" />
+        return <Input type="date" value={(value as string) ?? ''} onChange={(e) => updateField(field.id, e.target.value)} />
       default:
-        return <Input placeholder={field.placeholder} />
+        return <Input placeholder={field.placeholder} value={(value as string) ?? ''} onChange={(e) => updateField(field.id, e.target.value)} />
     }
   }
 
@@ -266,24 +316,30 @@ export default function ClientOnboardingPage() {
                   <>
                     <h4 className="text-sm font-medium">Formularios de esta etapa:</h4>
                     {selectedStage.formIds.map((formId) => {
-                      const form = mockFormTemplates.find((f) => f.id === formId)
+                      const form = formTemplates.find((f) => f.id === formId)
                       if (!form) return null
+                      const submission = clientFlow ? formSubmissions.find(
+                        (s) => s.clientFlowId === clientFlow.id && s.formTemplateId === formId && s.stageId === selectedStage.id
+                      ) : null
                       return (
                         <div
                           key={formId}
                           className="flex items-center justify-between rounded-lg border p-3"
                         >
                           <div className="flex items-center gap-3">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
+                            <FileText className={`h-5 w-5 ${submission ? 'text-green-500' : 'text-muted-foreground'}`} />
                             <div>
                               <p className="text-sm font-medium">{form.name}</p>
                               {form.description && (
                                 <p className="text-xs text-muted-foreground">{form.description}</p>
                               )}
+                              {submission && (
+                                <p className="text-xs text-green-600">Enviado</p>
+                              )}
                             </div>
                           </div>
-                          <Button size="sm" onClick={() => handleOpenForm(formId)}>
-                            Completar formulario
+                          <Button size="sm" variant={submission ? 'outline' : 'default'} onClick={() => handleOpenForm(formId)}>
+                            {submission ? 'Editar' : 'Completar'}
                           </Button>
                         </div>
                       )

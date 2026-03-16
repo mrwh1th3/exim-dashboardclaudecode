@@ -108,7 +108,12 @@ export default function NewClientPage() {
 
             <div className="space-y-2">
               <Label>Tipo de servicio</Label>
-              <Select value={serviceType} onValueChange={(val) => { setServiceType(val); setFlowTemplateId('') }}>
+              <Select value={serviceType} onValueChange={(val) => {
+                setServiceType(val)
+                // Auto-assign the first matching active flow
+                const matching = mockFlowTemplates.filter((f) => f.isActive && (val === 'ambos' || f.type === val))
+                setFlowTemplateId(matching.length === 1 ? matching[0].id : '')
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona el tipo de servicio" />
                 </SelectTrigger>
@@ -127,13 +132,16 @@ export default function NewClientPage() {
                   <SelectValue placeholder="Selecciona un flujo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredFlows.map((flow) => (
+                  {filteredFlows.filter((f) => f.isActive).map((flow) => (
                     <SelectItem key={flow.id} value={flow.id}>
-                      {flow.name}
+                      {flow.name} ({flow.type === 'web' ? 'Web' : 'Social'})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {flowTemplateId && filteredFlows.filter((f) => f.isActive).length === 1 && (
+                <p className="text-xs text-muted-foreground">Flujo asignado automáticamente por tipo de servicio</p>
+              )}
             </div>
 
             <div className="space-y-2">

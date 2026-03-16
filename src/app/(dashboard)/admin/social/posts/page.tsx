@@ -135,7 +135,14 @@ export default function PostsListPage() {
                   return (
                     <TableRow key={post.id}>
                       <TableCell className="font-medium">{post.clientName}</TableCell>
-                      <TableCell>{post.title || post.content.slice(0, 40) + '...'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {post.mediaUrls.length > 0 && (
+                            <img src={post.mediaUrls[0]} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
+                          )}
+                          <span>{post.title || post.content.slice(0, 40) + '...'}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
                           {post.platforms.map((p) => (

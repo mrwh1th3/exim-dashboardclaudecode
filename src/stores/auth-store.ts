@@ -8,6 +8,7 @@ interface AuthStore {
   isLoading: boolean
   setUser: (user: Profile | null) => void
   setRole: (role: UserRole) => void
+  updateProfile: (updates: Partial<Profile>) => void
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
   switchToClient: (clientId: string) => void
@@ -20,6 +21,11 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
 
       setUser: (user) => set({ user }),
+
+      updateProfile: (updates) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updates, updatedAt: new Date().toISOString() } : null,
+        })),
 
       setRole: (role) => {
         if (role === 'admin') {

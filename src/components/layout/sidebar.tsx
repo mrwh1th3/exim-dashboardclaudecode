@@ -22,6 +22,8 @@ import {
   Send,
   Eye,
   BarChart3,
+  Globe,
+  FolderOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -45,6 +47,7 @@ const adminSocialNav: NavItem[] = [
   { label: 'Calendario', href: '/admin/social/calendar', icon: <Calendar size={20} /> },
   { label: 'Posts', href: '/admin/social/posts', icon: <Megaphone size={20} /> },
   { label: 'Estrategia', href: '/admin/social/strategy', icon: <BarChart3 size={20} /> },
+  { label: 'Archivos', href: '/admin/social/files', icon: <FolderOpen size={20} /> },
 ]
 
 const adminSettingsNav: NavItem[] = [
@@ -62,6 +65,17 @@ const clientNav: NavItem[] = [
 const clientSocialNav: NavItem[] = [
   { label: 'Calendario', href: '/client/social/calendar', icon: <Calendar size={20} /> },
   { label: 'Estrategia', href: '/client/social/strategy', icon: <Eye size={20} /> },
+  { label: 'Archivos', href: '/client/social/files', icon: <FolderOpen size={20} /> },
+]
+
+const adminWebNav: NavItem[] = [
+  { label: 'Páginas', href: '/admin/web', icon: <Globe size={20} /> },
+  { label: 'Archivos', href: '/admin/web/files', icon: <FolderOpen size={20} /> },
+]
+
+const clientWebNav: NavItem[] = [
+  { label: 'Mi Página', href: '/client/web', icon: <Globe size={20} /> },
+  { label: 'Archivos', href: '/client/web/files', icon: <FolderOpen size={20} /> },
 ]
 
 function NavLink({ item, isCollapsed }: { item: NavItem; isCollapsed: boolean }) {
@@ -105,6 +119,7 @@ export function Sidebar() {
 
   const mainNav = isClient ? clientNav : adminNav
   const socialNav = isClient ? clientSocialNav : adminSocialNav
+  const webNav = isClient ? clientWebNav : adminWebNav
 
   return (
     <aside
@@ -116,10 +131,10 @@ export function Sidebar() {
       {/* Logo */}
       <div className={cn('flex h-14 items-center border-b px-4', isCollapsed && 'justify-center px-2')}>
         <Link href={isClient ? '/client' : '/admin'} className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg brand-gradient text-white font-bold text-sm">
             E
           </div>
-          {!isCollapsed && <span className="text-lg font-bold">Exim</span>}
+          {!isCollapsed && <span className="text-lg font-bold font-[family-name:var(--font-display)] tracking-wide">Exim</span>}
         </Link>
       </div>
 
@@ -139,6 +154,19 @@ export function Sidebar() {
         </div>
 
         {socialNav.map((item) => (
+          <NavLink key={item.href} item={item} isCollapsed={isCollapsed} />
+        ))}
+
+        <div className="py-2">
+          <Separator />
+          {!isCollapsed && (
+            <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Página Web
+            </p>
+          )}
+        </div>
+
+        {webNav.map((item) => (
           <NavLink key={item.href} item={item} isCollapsed={isCollapsed} />
         ))}
 

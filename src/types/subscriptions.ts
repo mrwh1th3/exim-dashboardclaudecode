@@ -25,3 +25,27 @@ export interface ClientSubscription {
   createdAt: string
   updatedAt: string
 }
+
+export type InvoiceStatus = 'paid' | 'pending' | 'failed' | 'void'
+
+export interface Invoice {
+  id: string
+  clientId: string
+  subscriptionId: string
+  amount: number
+  currency: string
+  status: InvoiceStatus
+  stripeInvoiceId?: string
+  periodStart: string
+  periodEnd: string
+  paidAt?: string
+  createdAt: string
+}
+
+export interface RevenueMetrics {
+  mrr: number
+  activeSubscriptions: number
+  totalRevenue: number
+  growth: number
+  churnRate: number
+}

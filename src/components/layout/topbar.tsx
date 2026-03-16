@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePathname, useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -15,6 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { LogOut, User, Shield, UserCog, UserCircle } from 'lucide-react'
 import { UserRole } from '@/types/auth'
+import { ProfileDialog } from '@/components/shared/profile-dialog'
 
 function getBreadcrumb(pathname: string): string {
   const segments = pathname.split('/').filter(Boolean)
@@ -33,6 +35,8 @@ function getBreadcrumb(pathname: string): string {
     settings: 'Configuración',
     statuses: 'Estados',
     new: 'Nuevo',
+    web: 'Página Web',
+    files: 'Archivos',
   }
 
   return segments
@@ -47,15 +51,16 @@ const roleLabels: Record<UserRole, string> = {
 }
 
 const roleColors: Record<UserRole, string> = {
-  admin: 'bg-red-100 text-red-700',
-  editor: 'bg-blue-100 text-blue-700',
-  client: 'bg-green-100 text-green-700',
+  admin: 'bg-orange-900/30 text-orange-400',
+  editor: 'bg-amber-900/30 text-amber-400',
+  client: 'bg-emerald-900/30 text-emerald-400',
 }
 
 export function Topbar() {
   const { user, setRole, logout } = useAuthStore()
   const pathname = usePathname()
   const router = useRouter()
+  const [profileOpen, setProfileOpen] = useState(false)
 
   const initials = user?.fullName
     ?.split(' ')
@@ -117,7 +122,7 @@ export function Topbar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setProfileOpen(true)}>
               <User size={16} className="mr-2" />
               Mi Perfil
             </DropdownMenuItem>
@@ -145,6 +150,8 @@ export function Topbar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </header>
   )
 }
