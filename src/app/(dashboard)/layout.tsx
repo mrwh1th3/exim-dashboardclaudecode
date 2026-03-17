@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect } from 'react'
 import { HorizontalHeader } from '@/components/layout/horizontal-header'
 import { useAuthStore } from '@/stores/auth-store'
