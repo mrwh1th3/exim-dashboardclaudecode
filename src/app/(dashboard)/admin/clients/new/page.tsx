@@ -1,15 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowLeft } from 'lucide-react'
-import { mockFlowTemplates } from '@/data/mock-flows'
-import { mockPlans } from '@/data/mock-subscriptions'
+import { ArrowLeft, Copy, Check } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -27,23 +33,72 @@ export default function NewClientPage() {
   const [serviceType, setServiceType] = useState<string>('')
   const [flowTemplateId, setFlowTemplateId] = useState<string>('')
   const [planId, setPlanId] = useState<string>('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const filteredFlows = mockFlowTemplates.filter((f) => {
+  const [flowTemplates, setFlowTemplates] = useState<any[]>([])
+  const [plans, setPlans] = useState<any[]>([])
+
+  const [createdPassword, setCreatedPassword] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    void (async () => {
+      const { data: flows } = await supabase
+        .from('flow_templates')
+        .select('id, name, type, is_active')
+        .eq('is_active', true)
+      setFlowTemplates(flows ?? [])
+
+      const { data: planData } = await supabase
+        .from('subscription_plans')
+        .select('id, name, price, currency, interval')
+        .eq('is_active', true)
+        .order('price', { ascending: true })
+      setPlans(planData ?? [])
+    })()
+  }, [])
+
+  const filteredFlows = flowTemplates.filter((f) => {
     if (!serviceType) return true
     if (serviceType === 'ambos') return true
     return f.type === serviceType
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!fullName || !email) {
       toast.error('Por favor completa los campos requeridos')
       return
     }
-    toast.success('Cliente creado exitosamente', {
-      description: `${fullName} ha sido agregado al sistema.`,
-    })
-    router.push('/admin/clients')
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/create-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, email, companyName, phone, flowTemplateId, planId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Error creando cliente')
+        return
+      }
+      setCreatedPassword(data.tempPassword)
+      setDialogOpen(true)
+    } catch {
+      toast.error('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(
+      `Email: ${email}\nContraseña temporal: ${createdPassword}`
+    )
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -108,12 +163,16 @@ export default function NewClientPage() {
 
             <div className="space-y-2">
               <Label>Tipo de servicio</Label>
-              <Select value={serviceType} onValueChange={(val) => {
-                setServiceType(val)
-                // Auto-assign the first matching active flow
-                const matching = mockFlowTemplates.filter((f) => f.isActive && (val === 'ambos' || f.type === val))
-                setFlowTemplateId(matching.length === 1 ? matching[0].id : '')
-              }}>
+              <Select
+                value={serviceType}
+                onValueChange={(val) => {
+                  setServiceType(val)
+                  const matching = flowTemplates.filter(
+                    (f) => f.is_active && (val === 'ambos' || f.type === val)
+                  )
+                  setFlowTemplateId(matching.length === 1 ? matching[0].id : '')
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona el tipo de servicio" />
                 </SelectTrigger>
@@ -132,15 +191,17 @@ export default function NewClientPage() {
                   <SelectValue placeholder="Selecciona un flujo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredFlows.filter((f) => f.isActive).map((flow) => (
+                  {filteredFlows.map((flow) => (
                     <SelectItem key={flow.id} value={flow.id}>
                       {flow.name} ({flow.type === 'web' ? 'Web' : 'Social'})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {flowTemplateId && filteredFlows.filter((f) => f.isActive).length === 1 && (
-                <p className="text-xs text-muted-foreground">Flujo asignado automáticamente por tipo de servicio</p>
+              {flowTemplateId && filteredFlows.length === 1 && (
+                <p className="text-xs text-muted-foreground">
+                  Flujo asignado automáticamente por tipo de servicio
+                </p>
               )}
             </div>
 
@@ -151,9 +212,10 @@ export default function NewClientPage() {
                   <SelectValue placeholder="Selecciona un plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockPlans.map((plan) => (
+                  {plans.map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name} - ${plan.price} {plan.currency}/{plan.interval === 'monthly' ? 'mes' : 'año'}
+                      {plan.name} — ${plan.price} {plan.currency}/
+                      {plan.interval === 'monthly' ? 'mes' : 'año'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -164,11 +226,52 @@ export default function NewClientPage() {
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancelar
               </Button>
-              <Button type="submit">Crear Cliente</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'Creando...' : 'Crear Cliente'}
+              </Button>
             </div>
           </form>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) router.push('/admin/clients')
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cliente creado exitosamente</DialogTitle>
+            <DialogDescription>
+              Comparte estas credenciales con <strong>{fullName}</strong> para que pueda acceder al dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 rounded-lg border p-4 font-mono text-sm bg-muted/30">
+            <div>
+              <span className="text-muted-foreground">Email: </span>
+              <span>{email}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Contraseña temporal: </span>
+              <span className="font-bold">{createdPassword}</span>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            El cliente deberá cambiar su contraseña al ingresar por primera vez.
+          </p>
+          <div className="flex gap-2 mt-2">
+            <Button variant="outline" className="flex-1" onClick={handleCopy}>
+              {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+              {copied ? 'Copiado' : 'Copiar credenciales'}
+            </Button>
+            <Button className="flex-1" onClick={() => router.push('/admin/clients')}>
+              Ir a clientes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

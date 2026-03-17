@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
-import { mockStrategies } from '@/data/mock-posts'
+import { createClient } from '@/lib/supabase/client'
 import { SocialStrategy } from '@/types/social'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -15,10 +15,32 @@ function stripHtml(html: string): string {
 
 export default function ClientStrategyPage() {
   const user = useAuthStore((s) => s.user)
+  const [strategies, setStrategies] = useState<SocialStrategy[]>([])
   const [selectedStrategy, setSelectedStrategy] = useState<SocialStrategy | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const strategies = mockStrategies.filter((s) => s.clientId === user?.id)
+  useEffect(() => {
+    if (!user?.id) return
+    const supabase = createClient()
+    void (async () => {
+      const { data } = await supabase
+        .from('social_strategies')
+        .select('*')
+        .eq('client_id', user.id)
+        .order('updated_at', { ascending: false })
+      setStrategies(
+        (data ?? []).map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          content: row.content,
+          clientId: row.client_id,
+          createdBy: row.created_by,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        }))
+      )
+    })()
+  }, [user?.id])
 
   const handleCardClick = (strategy: SocialStrategy) => {
     setSelectedStrategy(strategy)

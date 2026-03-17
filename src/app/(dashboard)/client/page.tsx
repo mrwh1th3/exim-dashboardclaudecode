@@ -1,57 +1,141 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { BarChart3, FileText, Calendar, ArrowRight } from 'lucide-react'
+import { BarChart3, FileText, Calendar, ArrowRight, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
-import { mockClientSubscriptions, mockPlans } from '@/data/mock-subscriptions'
-import { mockRequests } from '@/data/mock-requests'
-import { mockPosts } from '@/data/mock-posts'
+import { createClient } from '@/lib/supabase/client'
 import { StatCard } from '@/components/shared/stat-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { Meteors } from '@/components/ui/meteors'
+import { Button } from '@/components/ui/button'
+import {
+  MultiStepModal,
+  MultiStepModalContent,
+  MultiStepModalTrigger,
+} from '@/components/ui/multi-step-modal'
+
+const ONBOARDING_STEPS = [
+  {
+    title: 'Bienvenido a Exim',
+    description: 'Estamos felices de tenerte aquí. En los próximos pasos te explicaremos cómo sacar el máximo provecho de tu dashboard.',
+  },
+  {
+    title: 'Completa tu Onboarding',
+    description: 'Dirígete a la sección de Onboarding para completar los formularios iniciales. Esto nos ayuda a personalizar nuestros servicios para ti.',
+  },
+  {
+    title: 'Gestiona tus Solicitudes',
+    description: 'Desde "Solicitudes" puedes pedir cambios en tu página web, agregar productos y más. Respondemos en menos de 48 horas.',
+  },
+  {
+    title: 'Revisa tu Estrategia Social',
+    description: 'Accede al calendario de contenido para ver los posts programados y la estrategia de redes sociales diseñada para tu marca.',
+  },
+]
 
 export default function ClientPortalPage() {
   const user = useAuthStore((state) => state.user)
+  const [plan, setPlan] = useState<{ name: string; price: number; currency: string } | null>(null)
+  const [activeRequestsCount, setActiveRequestsCount] = useState(0)
+  const [nextPost, setNextPost] = useState<{ scheduled_date: string; title?: string } | null>(null)
+  const [onboardingProgress, setOnboardingProgress] = useState(0)
+  const [onboardingText, setOnboardingText] = useState('Sin etapas')
 
-  const subscription = mockClientSubscriptions.find((s) => s.clientId === user?.id)
-  const plan = subscription ? mockPlans.find((p) => p.id === subscription.planId) : null
+  useEffect(() => {
+    if (!user?.id) return
+    const supabase = createClient()
+    const userId = user.id
 
-  const activeRequests = mockRequests.filter(
-    (r) => r.clientId === user?.id && !['status-5', 'status-6'].includes(r.statusId)
-  )
+    void (async () => {
+      // Subscription + plan
+      const { data: sub } = await supabase
+        .from('client_subscriptions')
+        .select('subscription_plans(name, price, currency)')
+        .eq('client_id', userId)
+        .eq('status', 'active')
+        .maybeSingle()
+      if (sub?.subscription_plans) {
+        setPlan(sub.subscription_plans as { name: string; price: number; currency: string })
+      }
 
-  const upcomingPosts = mockPosts
-    .filter((p) => p.clientId === user?.id && p.scheduledDate)
-    .sort((a, b) => (a.scheduledDate ?? '').localeCompare(b.scheduledDate ?? ''))
+      // Active requests count
+      const { count } = await supabase
+        .from('requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('client_id', userId)
+      setActiveRequestsCount(count ?? 0)
 
-  const nextPost = upcomingPosts[0]
+      // Next upcoming post
+      const today = new Date().toISOString().split('T')[0]
+      const { data: post } = await supabase
+        .from('posts')
+        .select('scheduled_date, title')
+        .eq('client_id', userId)
+        .gte('scheduled_date', today)
+        .order('scheduled_date', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      setNextPost(post)
+
+      // Onboarding progress
+      const { data: flow } = await supabase
+        .from('client_flows')
+        .select('id')
+        .eq('client_id', userId)
+        .maybeSingle()
+      if (flow) {
+        const { data: stages } = await supabase
+          .from('client_stage_progress')
+          .select('status')
+          .eq('client_flow_id', flow.id)
+        if (stages?.length) {
+          const total = stages.length
+          const completed = stages.filter((s: { status: string }) => s.status === 'completed').length
+          setOnboardingProgress(Math.round((completed / total) * 100))
+          setOnboardingText(`${completed} de ${total} etapas completadas`)
+        }
+      }
+    })()
+  }, [user?.id])
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Bienvenido,{' '}
-          <AnimatedGradientText colorFrom="#d86226" colorTo="#7e230c" speed={0.8}>
-            {user?.fullName ?? 'Cliente'}
-          </AnimatedGradientText>
-        </h1>
-        <p className="text-muted-foreground">
-          Resumen de tu cuenta y servicios
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Bienvenido,{' '}
+            <AnimatedGradientText colorFrom="#d86226" colorTo="#7e230c" speed={0.8}>
+              {user?.fullName ?? 'Cliente'}
+            </AnimatedGradientText>
+          </h1>
+          <p className="text-muted-foreground">
+            Resumen de tu cuenta y servicios
+          </p>
+        </div>
+        <MultiStepModal>
+          <MultiStepModalTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              Guía de inicio
+            </Button>
+          </MultiStepModalTrigger>
+          <MultiStepModalContent steps={ONBOARDING_STEPS} />
+        </MultiStepModal>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Progreso Onboarding"
-          value="66%"
+          value={`${onboardingProgress}%`}
           icon={<BarChart3 className="h-6 w-6" />}
-          description="2 de 3 etapas completadas"
+          description={onboardingText}
         />
         <StatCard
-          title="Solicitudes Activas"
-          value={activeRequests.length}
+          title="Solicitudes"
+          value={activeRequestsCount}
           icon={<FileText className="h-6 w-6" />}
         />
         <StatCard
@@ -62,9 +146,9 @@ export default function ClientPortalPage() {
         />
         <StatCard
           title="Próximo Post"
-          value={nextPost?.scheduledDate ?? 'Sin posts'}
+          value={nextPost?.scheduled_date ?? 'Sin posts'}
           icon={<Calendar className="h-6 w-6" />}
-          description={nextPost?.title}
+          description={nextPost?.title ?? undefined}
         />
       </div>
 

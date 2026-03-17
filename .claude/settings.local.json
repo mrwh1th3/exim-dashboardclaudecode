@@ -1,7 +1,24 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack)"
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack)",
+      "WebFetch(domain:exime.lovable.app)",
+      "Bash(grep:*)",
+      "Bash(vercel:*)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__get_logs",
+      "mcp__claude_ai_Vercel__list_teams",
+      "mcp__claude_ai_Vercel__list_projects",
+      "WebFetch(domain:www.luxeui.com)",
+      "mcp__claude_ai_Vercel__get_project",
+      "Bash(npx luxe:*)",
+      "mcp__claude_ai_Vercel__get_deployment_build_logs",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "WebFetch(domain:www.instagram.com)",
+      "WebFetch(domain:www.eximdigital.mx)",
+      "WebFetch(domain:eximdigital.com)"
     ]
   }
 }

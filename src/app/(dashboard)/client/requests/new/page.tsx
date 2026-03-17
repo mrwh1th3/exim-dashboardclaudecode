@@ -4,6 +4,8 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,6 +22,7 @@ import {
 
 export default function NewRequestPage() {
   const router = useRouter()
+  const user = useAuthStore((state) => state.user)
 
   // Page change form state
   const [pageSection, setPageSection] = useState('')
@@ -36,6 +39,8 @@ export default function NewRequestPage() {
   const [implementationDescription, setImplementationDescription] = useState('')
   const [productPhoto, setProductPhoto] = useState<File[]>([])
   const productFileRef = useRef<HTMLInputElement>(null)
+
+  const [submitting, setSubmitting] = useState(false)
 
   const handlePageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -57,28 +62,80 @@ export default function NewRequestPage() {
     setProductPhoto((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handlePageChangeSubmit = (e: React.FormEvent) => {
+  async function getDefaultStatusId(): Promise<string | null> {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('request_statuses')
+      .select('id')
+      .order('order_index', { ascending: true })
+      .limit(1)
+      .single()
+    return data?.id ?? null
+  }
+
+  const handlePageChangeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!pageSection || !changeDescription) {
       toast.error('Por favor completa los campos requeridos')
       return
     }
-    toast.success('Solicitud de cambio enviada exitosamente', {
-      description: 'Te notificaremos cuando sea revisada.',
-    })
-    router.push('/client/requests')
+    if (!user?.id) return
+    setSubmitting(true)
+    try {
+      const supabase = createClient()
+      const statusId = await getDefaultStatusId()
+      const { error } = await supabase.from('requests').insert({
+        client_id: user.id,
+        type: 'page_change',
+        status_id: statusId,
+        urgency,
+        page_section: pageSection,
+        change_description: changeDescription,
+      })
+      if (error) throw error
+      toast.success('Solicitud de cambio enviada exitosamente', {
+        description: 'Te notificaremos cuando sea revisada.',
+      })
+      router.push('/client/requests')
+    } catch {
+      toast.error('Error al enviar la solicitud. Intenta de nuevo.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleProductSubmit = (e: React.FormEvent) => {
+  const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!productTitle || !productPrice || !productDescription) {
       toast.error('Por favor completa los campos requeridos')
       return
     }
-    toast.success('Solicitud de producto enviada exitosamente', {
-      description: 'Te notificaremos cuando sea revisada.',
-    })
-    router.push('/client/requests')
+    if (!user?.id) return
+    setSubmitting(true)
+    try {
+      const supabase = createClient()
+      const statusId = await getDefaultStatusId()
+      const { error } = await supabase.from('requests').insert({
+        client_id: user.id,
+        type: 'product',
+        status_id: statusId,
+        urgency: 'normal',
+        product_title: productTitle,
+        product_price: parseFloat(productPrice),
+        product_category: productCategory || null,
+        product_description: productDescription,
+        implementation_description: implementationDescription || null,
+      })
+      if (error) throw error
+      toast.success('Solicitud de producto enviada exitosamente', {
+        description: 'Te notificaremos cuando sea revisada.',
+      })
+      router.push('/client/requests')
+    } catch {
+      toast.error('Error al enviar la solicitud. Intenta de nuevo.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -183,8 +240,8 @@ export default function NewRequestPage() {
                 </div>
 
                 <div className="pt-4">
-                  <Button type="submit" className="w-full">
-                    Enviar Solicitud
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? 'Enviando...' : 'Enviar Solicitud'}
                   </Button>
                 </div>
               </form>
@@ -300,8 +357,8 @@ export default function NewRequestPage() {
                 </div>
 
                 <div className="pt-4">
-                  <Button type="submit" className="w-full">
-                    Enviar Solicitud
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? 'Enviando...' : 'Enviar Solicitud'}
                   </Button>
                 </div>
               </form>

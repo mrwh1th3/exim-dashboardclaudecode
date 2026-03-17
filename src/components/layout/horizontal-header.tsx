@@ -24,7 +24,6 @@ import {
 	MessageSquare,
 	CreditCard,
 	Calendar,
-	FileText,
 	Settings,
 	Megaphone,
 	ClipboardList,
@@ -34,7 +33,6 @@ import {
 	BarChart3,
 	Globe,
 	FolderOpen,
-	User,
 } from 'lucide-react';
 
 type LinkItem = {

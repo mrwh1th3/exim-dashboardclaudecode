@@ -1,12 +1,9 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, Circle, Clock, Lock } from 'lucide-react'
-import { mockClients } from '@/data/mock-clients'
-import { mockClientFlows, mockFlowTemplates, mockFlowStages, mockClientStageProgress } from '@/data/mock-flows'
-import { mockRequests, mockRequestStatuses } from '@/data/mock-requests'
-import { mockClientSubscriptions, mockPlans } from '@/data/mock-subscriptions'
+import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,7 +23,102 @@ interface ClientDetailPageProps {
 
 export default function ClientDetailPage({ params }: ClientDetailPageProps) {
   const { clientId } = use(params)
-  const client = mockClients.find((c) => c.id === clientId)
+  const [client, setClient] = useState<any>(null)
+  const [flowTemplate, setFlowTemplate] = useState<any>(null)
+  const [flowStages, setFlowStages] = useState<any[]>([])
+  const [clientFlow, setClientFlow] = useState<any>(null)
+  const [stageProgress, setStageProgress] = useState<any[]>([])
+  const [requests, setRequests] = useState<any[]>([])
+  const [subscription, setSubscription] = useState<any>(null)
+  const [plan, setPlan] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const supabase = createClient()
+    void (async () => {
+      // Load client profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', clientId)
+        .single()
+      setClient(profile)
+      setLoading(false)
+
+      // Load flow with template and stages
+      const { data: flow } = await supabase
+        .from('client_flows')
+        .select('*, flow_templates(id, name, flow_stages(id, name, description, order_index))')
+        .eq('client_id', clientId)
+        .maybeSingle()
+      if (flow) {
+        setClientFlow(flow)
+        const template = flow.flow_templates
+        if (template) {
+          setFlowTemplate(template)
+          setFlowStages(
+            [...(template.flow_stages ?? [])].sort(
+              (a: any, b: any) => a.order_index - b.order_index
+            )
+          )
+          const { data: progress } = await supabase
+            .from('client_stage_progress')
+            .select('*')
+            .eq('client_flow_id', flow.id)
+          setStageProgress(progress ?? [])
+        }
+      }
+
+      // Load requests
+      const { data: reqs } = await supabase
+        .from('requests')
+        .select('*, request_statuses(id, name, color)')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+      setRequests(reqs ?? [])
+
+      // Load subscription + plan
+      const { data: sub } = await supabase
+        .from('client_subscriptions')
+        .select('*, subscription_plans(*)')
+        .eq('client_id', clientId)
+        .maybeSingle()
+      if (sub) {
+        setSubscription(sub)
+        setPlan(sub.subscription_plans)
+      }
+    })()
+  }, [clientId])
+
+  const getStageStatusIcon = (stageId: string) => {
+    const progress = stageProgress.find((sp) => sp.stage_id === stageId)
+    if (!progress) return <Circle className="h-5 w-5 text-muted-foreground" />
+    switch (progress.status) {
+      case 'completed': return <CheckCircle2 className="h-5 w-5 text-green-500" />
+      case 'in_progress': return <Clock className="h-5 w-5 text-blue-500" />
+      case 'locked': return <Lock className="h-5 w-5 text-muted-foreground" />
+      default: return <Circle className="h-5 w-5 text-muted-foreground" />
+    }
+  }
+
+  const getStageStatusLabel = (stageId: string) => {
+    const progress = stageProgress.find((sp) => sp.stage_id === stageId)
+    if (!progress) return 'Sin iniciar'
+    switch (progress.status) {
+      case 'completed': return 'Completado'
+      case 'in_progress': return 'En progreso'
+      case 'locked': return 'Bloqueado'
+      default: return 'Disponible'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-muted-foreground">Cargando...</p>
+      </div>
+    )
+  }
 
   if (!client) {
     return (
@@ -43,51 +135,6 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     )
   }
 
-  const clientFlow = mockClientFlows.find((f) => f.clientId === clientId)
-  const flowTemplate = clientFlow
-    ? mockFlowTemplates.find((t) => t.id === clientFlow.flowTemplateId)
-    : null
-  const flowStages = flowTemplate
-    ? mockFlowStages.filter((s) => s.flowTemplateId === flowTemplate.id).sort((a, b) => a.orderIndex - b.orderIndex)
-    : []
-  const stageProgress = clientFlow
-    ? mockClientStageProgress.filter((sp) => sp.clientFlowId === clientFlow.id)
-    : []
-
-  const clientRequests = mockRequests.filter((r) => r.clientId === clientId)
-  const subscription = mockClientSubscriptions.find((s) => s.clientId === clientId)
-  const plan = subscription ? mockPlans.find((p) => p.id === subscription.planId) : null
-
-  const getStageStatusIcon = (stageId: string) => {
-    const progress = stageProgress.find((sp) => sp.stageId === stageId)
-    if (!progress) return <Circle className="h-5 w-5 text-muted-foreground" />
-    switch (progress.status) {
-      case 'completed':
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />
-      case 'in_progress':
-        return <Clock className="h-5 w-5 text-blue-500" />
-      case 'locked':
-        return <Lock className="h-5 w-5 text-muted-foreground" />
-      default:
-        return <Circle className="h-5 w-5 text-muted-foreground" />
-    }
-  }
-
-  const getStageStatusLabel = (stageId: string) => {
-    const progress = stageProgress.find((sp) => sp.stageId === stageId)
-    if (!progress) return 'Sin iniciar'
-    switch (progress.status) {
-      case 'completed': return 'Completado'
-      case 'in_progress': return 'En progreso'
-      case 'locked': return 'Bloqueado'
-      default: return 'Disponible'
-    }
-  }
-
-  const getRequestStatus = (statusId: string) => {
-    return mockRequestStatuses.find((s) => s.id === statusId)
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -98,14 +145,14 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">{client.fullName}</h1>
-            {client.isActive ? (
+            <h1 className="text-3xl font-bold tracking-tight">{client.full_name}</h1>
+            {client.is_active ? (
               <Badge variant="outline" className="border-green-500 text-green-600">Activo</Badge>
             ) : (
               <Badge variant="outline" className="border-red-500 text-red-600">Inactivo</Badge>
             )}
           </div>
-          <p className="text-muted-foreground">{client.companyName} &middot; {client.email}</p>
+          <p className="text-muted-foreground">{client.company_name} &middot; {client.email}</p>
         </div>
       </div>
 
@@ -167,7 +214,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
               <CardTitle>Solicitudes del Cliente</CardTitle>
             </CardHeader>
             <CardContent>
-              {clientRequests.length > 0 ? (
+              {requests.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -179,8 +226,8 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {clientRequests.map((req) => {
-                      const status = getRequestStatus(req.statusId)
+                    {requests.map((req) => {
+                      const status = req.request_statuses
                       return (
                         <TableRow key={req.id}>
                           <TableCell>
@@ -189,7 +236,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                             </Badge>
                           </TableCell>
                           <TableCell className="font-medium">
-                            {req.type === 'page_change' ? req.pageSection : req.productTitle}
+                            {req.type === 'page_change' ? req.page_section : req.product_title}
                           </TableCell>
                           <TableCell>
                             {req.urgency === 'urgent' ? (
@@ -204,7 +251,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {new Date(req.createdAt).toLocaleDateString('es-MX')}
+                            {new Date(req.created_at).toLocaleDateString('es-MX')}
                           </TableCell>
                         </TableRow>
                       )
@@ -261,22 +308,22 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Periodo actual</p>
                       <p className="text-sm">
-                        {subscription.currentPeriodStart
-                          ? new Date(subscription.currentPeriodStart).toLocaleDateString('es-MX')
+                        {subscription.current_period_start
+                          ? new Date(subscription.current_period_start).toLocaleDateString('es-MX')
                           : '-'}{' '}
                         -{' '}
-                        {subscription.currentPeriodEnd
-                          ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX')
+                        {subscription.current_period_end
+                          ? new Date(subscription.current_period_end).toLocaleDateString('es-MX')
                           : '-'}
                       </p>
                     </div>
                   </div>
 
-                  {plan.features.length > 0 && (
+                  {plan.features?.length > 0 && (
                     <div>
                       <p className="text-sm font-medium mb-2">Características del plan</p>
                       <ul className="space-y-1">
-                        {plan.features.map((feature, i) => (
+                        {plan.features.map((feature: string, i: number) => (
                           <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
                             <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
                             {feature}

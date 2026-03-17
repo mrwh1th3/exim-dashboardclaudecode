@@ -5,18 +5,37 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPSeparator,
+} from '@/components/ui/input-otp'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { ArrowLeft } from 'lucide-react'
 
+type Step = 'email' | 'otp' | 'done'
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [step, setStep] = useState<Step>('email')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSendEmail = (e: React.FormEvent) => {
     e.preventDefault()
-    setSent(true)
-    toast.success('Se envió un enlace de recuperación a tu email')
+    toast.success('Se envió el código de verificación a tu email')
+    setStep('otp')
+  }
+
+  const handleVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (otp.length < 6) {
+      toast.error('Ingresa el código completo de 6 dígitos')
+      return
+    }
+    toast.success('Código verificado correctamente')
+    setStep('done')
   }
 
   return (
@@ -33,23 +52,14 @@ export default function ForgotPasswordPage() {
           <CardHeader>
             <CardTitle>Recuperar Contraseña</CardTitle>
             <CardDescription>
-              {sent
-                ? 'Revisa tu bandeja de entrada'
-                : 'Te enviaremos un enlace para restablecer tu contraseña'}
+              {step === 'email' && 'Te enviaremos un código de verificación'}
+              {step === 'otp' && `Ingresa el código enviado a ${email}`}
+              {step === 'done' && 'Revisa tu bandeja de entrada'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {sent ? (
-              <div className="space-y-4 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Enviamos un enlace de recuperación a <strong>{email}</strong>
-                </p>
-                <Button variant="outline" className="w-full" onClick={() => setSent(false)}>
-                  Enviar de nuevo
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+            {step === 'email' && (
+              <form onSubmit={handleSendEmail} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -62,9 +72,59 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
                 <Button type="submit" className="w-full">
-                  Enviar enlace
+                  Enviar código
                 </Button>
               </form>
+            )}
+
+            {step === 'otp' && (
+              <form onSubmit={handleVerifyOtp} className="space-y-6">
+                <div className="flex flex-col items-center gap-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Ingresa el código de 6 dígitos que enviamos a tu email
+                  </p>
+                  <InputOTP
+                    maxLength={6}
+                    value={otp}
+                    onChange={setOtp}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                    </InputOTPGroup>
+                    <InputOTPSeparator />
+                    <InputOTPGroup>
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <Button type="submit" className="w-full" disabled={otp.length < 6}>
+                  Verificar código
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => { setStep('email'); setOtp('') }}
+                >
+                  Cambiar email
+                </Button>
+              </form>
+            )}
+
+            {step === 'done' && (
+              <div className="space-y-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Te enviamos un enlace para restablecer tu contraseña a{' '}
+                  <strong>{email}</strong>
+                </p>
+                <Button variant="outline" className="w-full" onClick={() => { setStep('email'); setOtp('') }}>
+                  Enviar de nuevo
+                </Button>
+              </div>
             )}
 
             <div className="mt-4">

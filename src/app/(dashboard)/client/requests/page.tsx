@@ -1,12 +1,13 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
-import { mockRequests, mockRequestStatuses } from '@/data/mock-requests'
+import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -18,12 +19,20 @@ import {
 
 export default function ClientRequestsPage() {
   const user = useAuthStore((state) => state.user)
+  const [requests, setRequests] = useState<any[]>([])
 
-  const clientRequests = mockRequests.filter((r) => r.clientId === user?.id)
-
-  const getStatusInfo = (statusId: string) => {
-    return mockRequestStatuses.find((s) => s.id === statusId)
-  }
+  useEffect(() => {
+    if (!user?.id) return
+    const supabase = createClient()
+    void (async () => {
+      const { data } = await supabase
+        .from('requests')
+        .select('*, request_statuses(id, name, color)')
+        .eq('client_id', user.id)
+        .order('created_at', { ascending: false })
+      setRequests(data ?? [])
+    })()
+  }, [user?.id])
 
   return (
     <div className="space-y-6">
@@ -42,7 +51,7 @@ export default function ClientRequestsPage() {
 
       <Card>
         <CardContent className="pt-6">
-          {clientRequests.length > 0 ? (
+          {requests.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -54,8 +63,8 @@ export default function ClientRequestsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clientRequests.map((req) => {
-                  const status = getStatusInfo(req.statusId)
+                {requests.map((req) => {
+                  const status = req.request_statuses
                   return (
                     <TableRow key={req.id}>
                       <TableCell>
@@ -64,7 +73,7 @@ export default function ClientRequestsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">
-                        {req.type === 'page_change' ? req.pageSection : req.productTitle}
+                        {req.type === 'page_change' ? req.page_section : req.product_title}
                       </TableCell>
                       <TableCell>
                         <Badge style={{ backgroundColor: status?.color, color: '#fff' }}>
@@ -79,7 +88,7 @@ export default function ClientRequestsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(req.createdAt).toLocaleDateString('es-MX')}
+                        {new Date(req.created_at).toLocaleDateString('es-MX')}
                       </TableCell>
                     </TableRow>
                   )

@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { toast } from 'sonner'
-import { Save, Upload } from 'lucide-react'
+import { Save, Upload, Bell, Mail, CreditCard, ThumbsUp } from 'lucide-react'
 
 export default function SettingsPage() {
   const [companyName, setCompanyName] = useState('Exim')
@@ -74,56 +74,98 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Notification Preferences */}
+      {/* Notification Preferences — Accordion */}
       <Card>
         <CardHeader>
-          <CardTitle>Preferencias de Notificaciones</CardTitle>
-          <CardDescription>Configura qué notificaciones por email deseas recibir</CardDescription>
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-primary" />
+            <div>
+              <CardTitle>Preferencias de Notificaciones</CardTitle>
+              <CardDescription>Configura qué notificaciones por email deseas recibir</CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Nueva solicitud</p>
-              <p className="text-xs text-muted-foreground">Recibir email cuando un cliente crea una nueva solicitud</p>
-            </div>
-            <Switch
-              checked={notifications.emailOnNewRequest}
-              onCheckedChange={() => toggleNotification('emailOnNewRequest')}
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Formulario completado</p>
-              <p className="text-xs text-muted-foreground">Recibir email cuando un cliente envía un formulario de onboarding</p>
-            </div>
-            <Switch
-              checked={notifications.emailOnFormSubmission}
-              onCheckedChange={() => toggleNotification('emailOnFormSubmission')}
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Cambio de suscripción</p>
-              <p className="text-xs text-muted-foreground">Recibir email cuando cambia el estado de una suscripción</p>
-            </div>
-            <Switch
-              checked={notifications.emailOnSubscriptionChange}
-              onCheckedChange={() => toggleNotification('emailOnSubscriptionChange')}
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Aprobación de post</p>
-              <p className="text-xs text-muted-foreground">Recibir email cuando un post requiere aprobación</p>
-            </div>
-            <Switch
-              checked={notifications.emailOnPostApproval}
-              onCheckedChange={() => toggleNotification('emailOnPostApproval')}
-            />
-          </div>
+        <CardContent className="px-0 pb-0">
+          <Accordion type="multiple" defaultValue={['requests', 'content']}>
+            <AccordionItem value="requests">
+              <AccordionTrigger className="px-6">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>Solicitudes de Clientes</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 px-2 pb-2">
+                  <div className="flex items-center justify-between rounded-lg p-3 bg-muted/30">
+                    <div>
+                      <p className="text-sm font-medium">Nueva solicitud</p>
+                      <p className="text-xs text-muted-foreground">Recibir email cuando un cliente crea una nueva solicitud</p>
+                    </div>
+                    <Switch
+                      checked={notifications.emailOnNewRequest}
+                      onCheckedChange={() => toggleNotification('emailOnNewRequest')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg p-3 bg-muted/30">
+                    <div>
+                      <p className="text-sm font-medium">Formulario completado</p>
+                      <p className="text-xs text-muted-foreground">Recibir email cuando un cliente envía un formulario de onboarding</p>
+                    </div>
+                    <Switch
+                      checked={notifications.emailOnFormSubmission}
+                      onCheckedChange={() => toggleNotification('emailOnFormSubmission')}
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="billing">
+              <AccordionTrigger className="px-6">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <span>Facturación y Suscripciones</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 px-2 pb-2">
+                  <div className="flex items-center justify-between rounded-lg p-3 bg-muted/30">
+                    <div>
+                      <p className="text-sm font-medium">Cambio de suscripción</p>
+                      <p className="text-xs text-muted-foreground">Recibir email cuando cambia el estado de una suscripción</p>
+                    </div>
+                    <Switch
+                      checked={notifications.emailOnSubscriptionChange}
+                      onCheckedChange={() => toggleNotification('emailOnSubscriptionChange')}
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="content" className="last:border-b-0">
+              <AccordionTrigger className="px-6">
+                <div className="flex items-center gap-2">
+                  <ThumbsUp className="h-4 w-4 text-muted-foreground" />
+                  <span>Contenido y Posts</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 px-2 pb-2">
+                  <div className="flex items-center justify-between rounded-lg p-3 bg-muted/30">
+                    <div>
+                      <p className="text-sm font-medium">Aprobación de post</p>
+                      <p className="text-xs text-muted-foreground">Recibir email cuando un post requiere aprobación</p>
+                    </div>
+                    <Switch
+                      checked={notifications.emailOnPostApproval}
+                      onCheckedChange={() => toggleNotification('emailOnPostApproval')}
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
 

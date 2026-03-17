@@ -1,10 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
-import { WebPageStatus } from '@/types/web-pages'
-import { mockWebPages, mockWebPageChanges } from '@/data/mock-web-pages'
+import { createClient } from '@/lib/supabase/client'
+import { WebPage, WebPageChange, WebPageStatus } from '@/types/web-pages'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -25,7 +25,7 @@ import {
 const statusConfig: Record<WebPageStatus, { label: string; color: string; progress: number }> = {
   draft: { label: 'Borrador', color: 'bg-gray-500', progress: 10 },
   in_development: { label: 'En desarrollo', color: 'bg-blue-500', progress: 40 },
-  review: { label: 'En revisi\u00f3n', color: 'bg-yellow-500', progress: 70 },
+  review: { label: 'En revisión', color: 'bg-yellow-500', progress: 70 },
   published: { label: 'Publicada', color: 'bg-green-500', progress: 100 },
   maintenance: { label: 'Mantenimiento', color: 'bg-orange-500', progress: 100 },
 }
@@ -45,34 +45,80 @@ const changeStatusLabel: Record<string, string> = {
 export default function ClientWebPage() {
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
+  const [webPage, setWebPage] = useState<WebPage | null>(null)
+  const [changes, setChanges] = useState<WebPageChange[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const webPage = useMemo(() => {
-    if (!user) return null
-    return mockWebPages.find((p) => p.clientId === user.id) || null
-  }, [user])
+  useEffect(() => {
+    if (!user?.id) return
+    const supabase = createClient()
+    void (async () => {
+      const { data } = await supabase
+        .from('web_pages')
+        .select('*')
+        .eq('client_id', user.id)
+        .maybeSingle()
+      if (data) {
+        setWebPage({
+          id: data.id,
+          clientId: data.client_id,
+          clientName: '',
+          url: data.url ?? undefined,
+          domain: data.domain ?? undefined,
+          status: data.status,
+          lastDeployedAt: data.last_deployed_at ?? undefined,
+          sslExpiry: data.ssl_expiry ?? undefined,
+          planId: data.plan_id ?? undefined,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        })
+        const { data: changeData } = await supabase
+          .from('web_page_changes')
+          .select('*')
+          .eq('web_page_id', data.id)
+          .order('created_at', { ascending: false })
+        setChanges(
+          (changeData ?? []).map((c: any) => ({
+            id: c.id,
+            webPageId: c.web_page_id,
+            title: c.title,
+            description: c.description,
+            status: c.status,
+            requestId: c.request_id ?? undefined,
+            createdAt: c.created_at,
+            completedAt: c.completed_at ?? undefined,
+          }))
+        )
+      }
+      setLoading(false)
+    })()
+  }, [user?.id])
 
-  const changes = useMemo(() => {
-    if (!webPage) return []
-    return mockWebPageChanges
-      .filter((c) => c.webPageId === webPage.id)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [webPage])
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Mi Página Web</h1>
+          <p className="text-muted-foreground">Información y estado de tu página web</p>
+        </div>
+        <div className="text-muted-foreground text-sm">Cargando...</div>
+      </div>
+    )
+  }
 
   if (!webPage) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mi P\u00e1gina Web</h1>
-          <p className="text-muted-foreground">
-            Informaci\u00f3n y estado de tu p\u00e1gina web
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Mi Página Web</h1>
+          <p className="text-muted-foreground">Información y estado de tu página web</p>
         </div>
         <EmptyState
           icon={<Globe size={28} />}
-          title="Sin p\u00e1gina web"
-          description="A\u00fan no tienes una p\u00e1gina web configurada. Contacta al equipo para comenzar."
+          title="Sin página web"
+          description="Aún no tienes una página web configurada. Contacta al equipo para comenzar."
           action={{
-            label: 'Solicitar p\u00e1gina web',
+            label: 'Solicitar página web',
             onClick: () => router.push('/client/requests/new'),
           }}
         />
@@ -85,13 +131,10 @@ export default function ClientWebPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Mi P\u00e1gina Web</h1>
-        <p className="text-muted-foreground">
-          Informaci\u00f3n y estado de tu p\u00e1gina web
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight">Mi Página Web</h1>
+        <p className="text-muted-foreground">Información y estado de tu página web</p>
       </div>
 
-      {/* Status Card */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
@@ -120,7 +163,6 @@ export default function ClientWebPage() {
         </CardContent>
       </Card>
 
-      {/* Site Info */}
       <Card>
         <CardHeader>
           <CardTitle>Detalles del sitio</CardTitle>
@@ -131,7 +173,7 @@ export default function ClientWebPage() {
               <Globe className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Dominio</p>
-                <p className="font-medium">{webPage.domain || '\u2014'}</p>
+                <p className="font-medium">{webPage.domain || '—'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -148,7 +190,7 @@ export default function ClientWebPage() {
                     {webPage.url}
                   </a>
                 ) : (
-                  <p className="font-medium">\u2014</p>
+                  <p className="font-medium">—</p>
                 )}
               </div>
             </div>
@@ -166,7 +208,7 @@ export default function ClientWebPage() {
             <div className="flex items-center gap-3">
               <Rocket className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">\u00daltimo despliegue</p>
+                <p className="text-sm text-muted-foreground">Último despliegue</p>
                 <p className="font-medium">
                   {webPage.lastDeployedAt
                     ? new Date(webPage.lastDeployedAt).toLocaleDateString('es-MX')
@@ -178,7 +220,6 @@ export default function ClientWebPage() {
         </CardContent>
       </Card>
 
-      {/* Changes Timeline */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Cambios recientes</CardTitle>
@@ -194,7 +235,7 @@ export default function ClientWebPage() {
         <CardContent>
           {changes.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              No hay cambios registrados a\u00fan.
+              No hay cambios registrados aún.
             </p>
           ) : (
             <div className="space-y-4">
@@ -213,9 +254,7 @@ export default function ClientWebPage() {
                         {change.description}
                       </p>
                       <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                        <span>
-                          {new Date(change.createdAt).toLocaleDateString('es-MX')}
-                        </span>
+                        <span>{new Date(change.createdAt).toLocaleDateString('es-MX')}</span>
                         {change.completedAt && (
                           <span>
                             Completado: {new Date(change.completedAt).toLocaleDateString('es-MX')}

@@ -8,15 +8,18 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Spinner } from '@/components/ui/spinner'
 
 export default function AdminRequestsPage() {
   const [requests, setRequests] = useState<Request[]>([])
   const [statuses, setStatuses] = useState<RequestStatus[]>([])
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
+      setLoading(true)
       const supabase = createClient()
       const [{ data: reqs }, { data: sts }] = await Promise.all([
         supabase
@@ -54,6 +57,7 @@ export default function AdminRequestsPage() {
           updatedAt: r.updated_at,
         }))
       )
+      setLoading(false)
     }
     load()
   }, [])
@@ -65,6 +69,17 @@ export default function AdminRequestsPage() {
   })
 
   const getStatusInfo = (statusId: string) => statuses.find((s) => s.id === statusId)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="flex flex-col items-center gap-4">
+          <Spinner size="size-10" />
+          <p className="text-sm text-muted-foreground">Cargando solicitudes...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
