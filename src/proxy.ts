@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session — do NOT remove this
+  // Refresh session
   const { data: { user } } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname

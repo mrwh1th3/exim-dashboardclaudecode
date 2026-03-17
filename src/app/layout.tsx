@@ -1,14 +1,9 @@
-import type { Metadata } from "next";
-import { JetBrains_Mono, Bebas_Neue } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Bebas_Neue } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PWARegister } from "@/components/pwa-register";
 import "./globals.css";
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
 
 const bebasNeue = Bebas_Neue({
   variable: "--font-display",
@@ -19,6 +14,23 @@ const bebasNeue = Bebas_Neue({
 export const metadata: Metadata = {
   title: "Exim Dashboard",
   description: "Dashboard de gestión de clientes - Exim",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Exim",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/logo-diamond.png",
+    apple: "/logo-diamond.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#575ECF",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -28,13 +40,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="dark">
-      <body
-        className={`${jetbrainsMono.variable} ${bebasNeue.variable} antialiased`}
-      >
+      <body className={`${bebasNeue.variable} antialiased`}>
         <TooltipProvider>
           {children}
           <Toaster richColors position="top-right" />
         </TooltipProvider>
+        <PWARegister />
       </body>
     </html>
   );

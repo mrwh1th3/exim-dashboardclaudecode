@@ -47,24 +47,23 @@ export const useAuthStore = create<AuthStore>()((set) => ({
   })),
 
   login: async (email: string, password: string) => {
-    const supabase = createClient()
     set({ isLoading: true })
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (error || !data.user) {
-      set({ isLoading: false })
-      return { success: false, error: error?.message ?? 'Error al iniciar sesión' }
-    }
+      const data = await res.json()
 
-    // Fetch profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single()
+      if (!res.ok) {
+        set({ isLoading: false })
+        return { success: false, error: data.error ?? 'Credenciales incorrectas' }
+      }
 
-    if (profile) {
+      const profile = data.profile
       set({
         user: {
           id: profile.id,
@@ -80,11 +79,12 @@ export const useAuthStore = create<AuthStore>()((set) => ({
         },
         isLoading: false,
       })
-    } else {
-      set({ isLoading: false })
-    }
 
-    return { success: true }
+      return { success: true }
+    } catch {
+      set({ isLoading: false })
+      return { success: false, error: 'No se pudo conectar al servidor. Verifica tu conexión.' }
+    }
   },
 
   logout: async () => {

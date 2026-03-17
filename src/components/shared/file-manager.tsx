@@ -365,7 +365,7 @@ export function FileManager({ section, clientId, isAdmin }: FileManagerProps) {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <DropdownMenu>
-                    <DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild>
                       <Button size="icon" variant="ghost" className="h-6 w-6">
                         <MoreVertical className="h-3.5 w-3.5" />
                       </Button>
@@ -431,7 +431,7 @@ export function FileManager({ section, clientId, isAdmin }: FileManagerProps) {
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
-                      <DropdownMenuTrigger>
+                      <DropdownMenuTrigger asChild>
                         <Button size="icon" variant="ghost" className="h-7 w-7">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
