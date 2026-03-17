@@ -6,8 +6,6 @@ import {
   TrendingUp, ArrowUpRight, Activity, Clock,
   CheckCircle2, AlertCircle, Zap
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
 import { NumberTicker } from '@/components/ui/number-ticker'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -40,47 +38,81 @@ interface ActivityItem {
 
 // ─── Metric Card ──────────────────────────────────────────────────────────────
 function MetricCard({
-  title, value, icon, gradient, description, trend,
+  title, value, icon, accentColor, description, trend, delay = 0,
 }: {
   title: string
   value: number
   icon: React.ReactNode
-  gradient: string
+  accentColor: string
   description?: string
   trend?: number
+  delay?: number
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-      {/* gradient accent bar */}
-      <div className={cn('absolute inset-x-0 top-0 h-0.5', gradient)} />
+    <div
+      className="animate-fade-up relative overflow-hidden rounded-xl p-6 transition-all duration-300 hover:-translate-y-1"
+      style={{
+        animationDelay: `${delay}ms`,
+        background: 'oklch(0.17 0 0)',
+        border: '1px solid oklch(1 0 0 / 7%)',
+        boxShadow: '0 1px 3px oklch(0 0 0 / 30%)',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLDivElement).style.borderColor = `${accentColor}30`
+        ;(e.currentTarget as HTMLDivElement).style.boxShadow = `0 0 40px ${accentColor}12, 0 4px 20px oklch(0 0 0 / 30%)`
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLDivElement).style.borderColor = 'oklch(1 0 0 / 7%)'
+        ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px oklch(0 0 0 / 30%)'
+      }}
+    >
+      {/* Left accent bar */}
+      <div
+        className="absolute inset-y-0 left-0 w-[3px]"
+        style={{ background: accentColor, opacity: 0.9 }}
+      />
 
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between pl-2">
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <p
+            className="text-muted-foreground uppercase tracking-widest"
+            style={{ fontSize: '0.6rem', letterSpacing: '0.2em', fontFamily: 'var(--font-mono)' }}
+          >
             {title}
           </p>
-          <p className="text-4xl font-black tabular-nums text-foreground">
+
+          {/* Big number */}
+          <p
+            className="text-foreground leading-none"
+            style={{ fontFamily: 'var(--font-display)', fontSize: '3.5rem' }}
+          >
             <NumberTicker value={value} />
           </p>
+
           {description && (
             <p className="text-xs text-muted-foreground">{description}</p>
           )}
+
           {trend !== undefined && (
-            <span className={cn(
-              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold',
-              trend >= 0
-                ? 'bg-emerald-500/10 text-emerald-600'
-                : 'bg-red-500/10 text-red-600'
-            )}>
+            <span
+              className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-semibold"
+              style={{
+                background: `${accentColor}15`,
+                color: accentColor,
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.6rem',
+              }}
+            >
               <ArrowUpRight className={cn('h-3 w-3', trend < 0 && 'rotate-180')} />
-              {Math.abs(trend)}% este mes
+              +{Math.abs(trend)}% este mes
             </span>
           )}
         </div>
-        <div className={cn(
-          'flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm',
-          gradient
-        )}>
+
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-lg shrink-0"
+          style={{ background: `${accentColor}15`, color: accentColor }}
+        >
           {icon}
         </div>
       </div>
@@ -91,17 +123,16 @@ function MetricCard({
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 function Avatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'md' }) {
   const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
-  const colors = [
-    'bg-violet-500', 'bg-indigo-500', 'bg-sky-500',
-    'bg-emerald-500', 'bg-amber-500', 'bg-rose-500',
-  ]
+  const colors = ['#8B5CF6', '#6366F1', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444']
   const color = colors[name.charCodeAt(0) % colors.length]
   return (
-    <div className={cn(
-      'flex items-center justify-center rounded-full font-bold text-white shrink-0',
-      color,
-      size === 'sm' ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'
-    )}>
+    <div
+      className={cn(
+        'flex items-center justify-center rounded-full font-bold text-white shrink-0',
+        size === 'sm' ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'
+      )}
+      style={{ background: color }}
+    >
       {initials}
     </div>
   )
@@ -110,16 +141,82 @@ function Avatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'md' }) {
 // ─── Activity Icon ─────────────────────────────────────────────────────────────
 function ActivityIcon({ type }: { type: ActivityItem['type'] }) {
   const map = {
-    request: { icon: <MessageSquare className="h-3 w-3" />, bg: 'bg-violet-500' },
-    subscription: { icon: <CreditCard className="h-3 w-3" />, bg: 'bg-emerald-500' },
-    post: { icon: <Calendar className="h-3 w-3" />, bg: 'bg-sky-500' },
-    client: { icon: <Users className="h-3 w-3" />, bg: 'bg-amber-500' },
+    request:      { icon: <MessageSquare className="h-3 w-3" />, color: '#8B5CF6' },
+    subscription: { icon: <CreditCard className="h-3 w-3" />,    color: '#10B981' },
+    post:         { icon: <Calendar className="h-3 w-3" />,       color: '#0EA5E9' },
+    client:       { icon: <Users className="h-3 w-3" />,          color: '#F59E0B' },
   }
-  const { icon, bg } = map[type]
+  const { icon, color } = map[type]
   return (
-    <div className={cn('flex h-5 w-5 items-center justify-center rounded-full text-white', bg)}>
+    <div
+      className="flex h-5 w-5 items-center justify-center rounded-full text-white shrink-0"
+      style={{ background: color }}
+    >
       {icon}
     </div>
+  )
+}
+
+// ─── Section Header ───────────────────────────────────────────────────────────
+function SectionHeader({ icon, title, accent, count }: {
+  icon: React.ReactNode; title: string; accent: string; count?: number
+}) {
+  return (
+    <div
+      className="flex items-center justify-between px-5 py-4"
+      style={{ borderBottom: '1px solid oklch(1 0 0 / 6%)' }}
+    >
+      <div className="flex items-center gap-2.5">
+        <div
+          className="flex h-7 w-7 items-center justify-center rounded-md"
+          style={{ background: `${accent}18`, color: accent }}
+        >
+          {icon}
+        </div>
+        <h2
+          className="text-foreground"
+          style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', letterSpacing: '0.05em' }}
+        >
+          {title}
+        </h2>
+      </div>
+      {count !== undefined && (
+        <span
+          className="text-muted-foreground"
+          style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem' }}
+        >
+          {count} registros
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ─── Panel wrapper ────────────────────────────────────────────────────────────
+function Panel({ children, className, style }: {
+  children: React.ReactNode; className?: string; style?: React.CSSProperties
+}) {
+  return (
+    <div
+      className={cn('overflow-hidden rounded-xl', className)}
+      style={{
+        background: 'oklch(0.17 0 0)',
+        border: '1px solid oklch(1 0 0 / 7%)',
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn('rounded animate-pulse', className)}
+      style={{ background: 'oklch(1 0 0 / 6%)' }}
+    />
   )
 }
 
@@ -136,7 +233,6 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        // Current user name
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           const { data: profile } = await supabase
@@ -144,7 +240,6 @@ export default function AdminDashboardPage() {
           setUserName(profile?.full_name?.split(' ')[0] ?? 'Admin')
         }
 
-        // Stats in parallel
         const [
           { count: clientCount },
           { count: pendingCount },
@@ -152,12 +247,9 @@ export default function AdminDashboardPage() {
           { count: scheduledCount },
         ] = await Promise.all([
           supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'client'),
-          supabase.from('requests').select('*', { count: 'exact', head: true })
-            .not('status_id', 'is', null),
-          supabase.from('client_subscriptions').select('*', { count: 'exact', head: true })
-            .eq('status', 'active'),
-          supabase.from('posts').select('*', { count: 'exact', head: true })
-            .eq('status', 'scheduled'),
+          supabase.from('requests').select('*', { count: 'exact', head: true }).not('status_id', 'is', null),
+          supabase.from('client_subscriptions').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+          supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'scheduled'),
         ])
 
         setStats({
@@ -167,7 +259,6 @@ export default function AdminDashboardPage() {
           scheduledPosts: scheduledCount ?? 0,
         })
 
-        // Recent requests with status join
         const { data: reqs } = await supabase
           .from('requests')
           .select(`
@@ -180,8 +271,7 @@ export default function AdminDashboardPage() {
 
         if (reqs) {
           setRequests(reqs.map((r: any) => ({
-            id: r.id,
-            title: r.title,
+            id: r.id, title: r.title,
             clientName: r.profiles?.company_name ?? r.profiles?.full_name ?? '—',
             type: r.type,
             statusName: r.request_statuses?.name ?? '—',
@@ -190,7 +280,6 @@ export default function AdminDashboardPage() {
           })))
         }
 
-        // Activity: latest clients + requests + posts
         const [{ data: newClients }, { data: newPosts }, { data: newReqs }] = await Promise.all([
           supabase.from('profiles').select('id, full_name, company_name, created_at')
             .eq('role', 'client').order('created_at', { ascending: false }).limit(3),
@@ -204,20 +293,17 @@ export default function AdminDashboardPage() {
           ...(newClients ?? []).map((c: any) => ({
             id: 'c-' + c.id, type: 'client' as const,
             clientName: c.company_name ?? c.full_name ?? 'Cliente',
-            action: 'Nuevo cliente registrado',
-            date: c.created_at,
+            action: 'Nuevo cliente registrado', date: c.created_at,
           })),
           ...(newPosts ?? []).map((p: any) => ({
             id: 'p-' + p.id, type: 'post' as const,
             clientName: p.profiles?.company_name ?? p.profiles?.full_name ?? 'Cliente',
-            action: `Post creado: "${p.title}"`,
-            date: p.created_at,
+            action: `Post: "${p.title}"`, date: p.created_at,
           })),
           ...(newReqs ?? []).map((r: any) => ({
             id: 'r-' + r.id, type: 'request' as const,
             clientName: r.profiles?.company_name ?? r.profiles?.full_name ?? 'Cliente',
-            action: `Solicitud: "${r.title}"`,
-            date: r.created_at,
+            action: `Solicitud: "${r.title}"`, date: r.created_at,
           })),
         ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6)
 
@@ -232,129 +318,146 @@ export default function AdminDashboardPage() {
   }, [])
 
   const metrics = [
-    {
-      title: 'Clientes Activos',
-      value: stats.clients,
-      icon: <Users className="h-5 w-5" />,
-      gradient: 'bg-gradient-to-r from-violet-500 to-indigo-500',
-      description: 'Clientes registrados',
-      trend: 12,
-    },
-    {
-      title: 'Solicitudes',
-      value: stats.pendingRequests,
-      icon: <MessageSquare className="h-5 w-5" />,
-      gradient: 'bg-gradient-to-r from-amber-500 to-orange-500',
-      description: 'Total en sistema',
-    },
-    {
-      title: 'Suscripciones',
-      value: stats.activeSubscriptions,
-      icon: <CreditCard className="h-5 w-5" />,
-      gradient: 'bg-gradient-to-r from-emerald-500 to-teal-500',
-      description: 'Planes activos',
-      trend: 8,
-    },
-    {
-      title: 'Posts Programados',
-      value: stats.scheduledPosts,
-      icon: <Calendar className="h-5 w-5" />,
-      gradient: 'bg-gradient-to-r from-sky-500 to-cyan-500',
-      description: 'Listos para publicar',
-    },
+    { title: 'Clientes Activos',   value: stats.clients,             icon: <Users className="h-4.5 w-4.5" />,       accentColor: '#8B5CF6', description: 'Clientes registrados',   trend: 12, delay: 0 },
+    { title: 'Solicitudes',        value: stats.pendingRequests,     icon: <MessageSquare className="h-4.5 w-4.5" />,accentColor: '#F59E0B', description: 'Total en sistema',                 delay: 100 },
+    { title: 'Suscripciones',      value: stats.activeSubscriptions, icon: <CreditCard className="h-4.5 w-4.5" />,  accentColor: '#10B981', description: 'Planes activos',        trend: 8,  delay: 200 },
+    { title: 'Posts Programados',  value: stats.scheduledPosts,      icon: <Calendar className="h-4.5 w-4.5" />,    accentColor: '#0EA5E9', description: 'Listos para publicar',             delay: 300 },
   ]
 
   const timeAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime()
     const m = Math.floor(diff / 60000)
-    if (m < 60) return `Hace ${m}m`
+    if (m < 60) return `${m}m`
     const h = Math.floor(m / 60)
-    if (h < 24) return `Hace ${h}h`
-    return `Hace ${Math.floor(h / 24)}d`
+    if (h < 24) return `${h}h`
+    return `${Math.floor(h / 24)}d`
   }
 
   const typeLabel = (type: string) => ({
-    page_change: 'Cambio de página',
-    new_product: 'Nuevo producto',
+    page_change: 'Cambio',
+    new_product: 'Producto',
     design: 'Diseño',
     other: 'Otro',
   }[type] ?? type)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">
-            {loading ? 'Cargando...' : `Bienvenido de vuelta, ${userName} 👋`}
+      <div className="flex items-end justify-between animate-fade-up">
+        <div>
+          <p
+            className="text-muted-foreground mb-1.5"
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.15em', textTransform: 'uppercase' }}
+          >
+            {loading ? '— / —' : `Bienvenido, ${userName}`}
           </p>
-          <h1 className="text-4xl font-black tracking-tight">
-            <AnimatedGradientText colorFrom="#d86226" colorTo="#7e230c" speed={0.8}>
-              Dashboard
-            </AnimatedGradientText>
+          <h1
+            className="text-foreground leading-none"
+            style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2.8rem, 5vw, 4.5rem)', letterSpacing: '0.02em' }}
+          >
+            DASHBOARD
           </h1>
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2 text-sm text-muted-foreground shadow-sm">
-          <Activity className="h-4 w-4 text-emerald-500" />
-          Sistema operando con normalidad
+
+        <div
+          className="hidden sm:flex items-center gap-2 rounded-lg px-4 py-2.5"
+          style={{
+            background: 'oklch(0.17 0 0)',
+            border: '1px solid oklch(1 0 0 / 7%)',
+          }}
+        >
+          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span
+            className="text-muted-foreground"
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.08em' }}
+          >
+            SISTEMA OPERATIVO
+          </span>
         </div>
       </div>
 
+      {/* ── Amber rule line ────────────────────────────────────────────── */}
+      <div
+        className="animate-fade-in anim-delay-200"
+        style={{ height: '1px', background: 'linear-gradient(90deg, oklch(0.47 0.22 264 / 60%), transparent)' }}
+      />
+
       {/* ── KPI Grid ───────────────────────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((m) => (
           <MetricCard key={m.title} {...m} />
         ))}
       </div>
 
       {/* ── Main content ───────────────────────────────────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid gap-5 lg:grid-cols-5">
 
         {/* Recent Requests — 3 cols */}
-        <div className="lg:col-span-3 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border/50 px-6 py-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/10">
-                <MessageSquare className="h-4 w-4 text-violet-500" />
-              </div>
-              <h2 className="font-semibold text-sm">Solicitudes Recientes</h2>
-            </div>
-            <span className="text-xs text-muted-foreground">{requests.length} registros</span>
-          </div>
+        <Panel className="lg:col-span-3 animate-fade-up anim-delay-300">
+          <SectionHeader
+            icon={<MessageSquare className="h-3.5 w-3.5" />}
+            title="SOLICITUDES RECIENTES"
+            accent="#8B5CF6"
+            count={requests.length}
+          />
 
-          <div className="divide-y divide-border/40">
+          <div>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-6 py-4 animate-pulse">
-                  <div className="h-8 w-8 rounded-full bg-muted" />
+                <div
+                  key={i}
+                  className="flex items-center gap-4 px-5 py-4"
+                  style={{ borderBottom: '1px solid oklch(1 0 0 / 5%)' }}
+                >
+                  <Skeleton className="h-8 w-8 rounded-full" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-3 w-32 rounded bg-muted" />
-                    <div className="h-2 w-48 rounded bg-muted" />
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-2 w-44" />
                   </div>
-                  <div className="h-5 w-16 rounded-full bg-muted" />
+                  <Skeleton className="h-5 w-14 rounded-sm" />
                 </div>
               ))
             ) : requests.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
-                <CheckCircle2 className="h-8 w-8 opacity-40" />
-                <p className="text-sm">Sin solicitudes aún</p>
+              <div className="flex flex-col items-center gap-2 py-14 text-muted-foreground">
+                <CheckCircle2 className="h-8 w-8 opacity-30" />
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>Sin solicitudes aún</p>
               </div>
             ) : (
-              requests.map((req) => (
-                <div key={req.id} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/30 transition-colors">
+              requests.map((req, i) => (
+                <div
+                  key={req.id}
+                  className="flex items-center gap-4 px-5 py-4 transition-colors"
+                  style={{
+                    borderBottom: i < requests.length - 1 ? '1px solid oklch(1 0 0 / 5%)' : 'none',
+                  }}
+                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'oklch(1 0 0 / 2.5%)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = ''}
+                >
                   <Avatar name={req.clientName} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{req.clientName}</p>
-                    <p className="text-xs text-muted-foreground truncate">{req.title}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{req.clientName}</p>
+                    <p className="truncate text-muted-foreground" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem' }}>{req.title}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className="text-xs hidden sm:flex">
-                      {typeLabel(req.type)}
-                    </Badge>
                     <span
-                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
-                      style={{ backgroundColor: req.statusColor }}
+                      className="hidden sm:inline-flex items-center rounded-sm px-2 py-0.5 text-muted-foreground"
+                      style={{
+                        background: 'oklch(1 0 0 / 5%)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.6rem',
+                        border: '1px solid oklch(1 0 0 / 8%)',
+                      }}
+                    >
+                      {typeLabel(req.type)}
+                    </span>
+                    <span
+                      className="inline-flex items-center rounded-sm px-2 py-0.5 text-white font-bold"
+                      style={{
+                        background: req.statusColor,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.6rem',
+                      }}
                     >
                       {req.statusName}
                     </span>
@@ -363,76 +466,93 @@ export default function AdminDashboardPage() {
               ))
             )}
           </div>
-        </div>
+        </Panel>
 
         {/* Activity Feed — 2 cols */}
-        <div className="lg:col-span-2 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border/50 px-6 py-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/10">
-                <Zap className="h-4 w-4 text-sky-500" />
-              </div>
-              <h2 className="font-semibold text-sm">Actividad Reciente</h2>
-            </div>
-          </div>
+        <Panel className="lg:col-span-2 animate-fade-up anim-delay-400">
+          <SectionHeader
+            icon={<Zap className="h-3.5 w-3.5" />}
+            title="ACTIVIDAD"
+            accent="#F59E0B"
+          />
 
-          <div className="px-6 py-4 space-y-5">
+          <div className="px-5 py-5 space-y-5">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-3 animate-pulse">
-                  <div className="h-8 w-8 rounded-full bg-muted" />
+                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
                   <div className="flex-1 space-y-2 pt-1">
-                    <div className="h-3 w-full rounded bg-muted" />
-                    <div className="h-2 w-16 rounded bg-muted" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-2 w-16" />
                   </div>
                 </div>
               ))
             ) : activity.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
-                <AlertCircle className="h-8 w-8 opacity-40" />
-                <p className="text-sm">Sin actividad reciente</p>
+                <AlertCircle className="h-8 w-8 opacity-30" />
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>Sin actividad reciente</p>
               </div>
             ) : (
               activity.map((item, idx) => (
                 <div key={item.id} className="flex items-start gap-3">
-                  {/* timeline line */}
                   <div className="relative flex flex-col items-center">
                     <Avatar name={item.clientName} size="sm" />
                     {idx < activity.length - 1 && (
-                      <div className="absolute top-8 h-5 w-px bg-border/60" />
+                      <div
+                        className="absolute top-8 w-px"
+                        style={{ height: '24px', background: 'oklch(1 0 0 / 8%)' }}
+                      />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0 pt-1">
+                  <div className="flex-1 min-w-0 pt-0.5">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <ActivityIcon type={item.type} />
-                      <p className="text-xs font-semibold">{item.clientName}</p>
+                      <p className="text-xs font-semibold text-foreground">{item.clientName}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.action}</p>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground/60">
+                    <p className="truncate text-muted-foreground mt-0.5" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem' }}>
+                      {item.action}
+                    </p>
+                    <div
+                      className="flex items-center gap-1 mt-1 text-muted-foreground/50"
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem' }}
+                    >
                       <Clock className="h-3 w-3" />
-                      {timeAgo(item.date)}
+                      Hace {timeAgo(item.date)}
                     </div>
                   </div>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </Panel>
       </div>
 
       {/* ── Quick Stats bar ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 animate-fade-up anim-delay-500">
         {[
-          { label: 'Tasa de retención', value: '94%', icon: <TrendingUp className="h-4 w-4 text-emerald-500" />, color: 'text-emerald-600' },
-          { label: 'Satisfacción', value: '4.8/5', icon: <CheckCircle2 className="h-4 w-4 text-sky-500" />, color: 'text-sky-600' },
-          { label: 'Tiempo resp. prom.', value: '2h', icon: <Clock className="h-4 w-4 text-amber-500" />, color: 'text-amber-600' },
-          { label: 'Uptime del mes', value: '99.9%', icon: <Activity className="h-4 w-4 text-violet-500" />, color: 'text-violet-600' },
+          { label: 'Tasa de retención', value: '94%',   icon: <TrendingUp className="h-4 w-4" />,   color: '#10B981' },
+          { label: 'Satisfacción',      value: '4.8/5', icon: <CheckCircle2 className="h-4 w-4" />, color: '#0EA5E9' },
+          { label: 'Resp. promedio',    value: '2h',    icon: <Clock className="h-4 w-4" />,        color: '#F59E0B' },
+          { label: 'Uptime del mes',    value: '99.9%', icon: <Activity className="h-4 w-4" />,     color: '#8B5CF6' },
         ].map((s) => (
-          <div key={s.label} className="flex items-center gap-3 rounded-xl border border-border/50 bg-card px-4 py-3 shadow-sm">
-            {s.icon}
+          <div
+            key={s.label}
+            className="flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all duration-200"
+            style={{ background: 'oklch(0.17 0 0)', border: '1px solid oklch(1 0 0 / 7%)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = `${s.color}30`}
+            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = 'oklch(1 0 0 / 7%)'}
+          >
+            <div style={{ color: s.color }}>{s.icon}</div>
             <div>
-              <p className={cn('text-sm font-bold', s.color)}>{s.value}</p>
-              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p
+                className="font-bold"
+                style={{ color: s.color, fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}
+              >
+                {s.value}
+              </p>
+              <p className="text-muted-foreground" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem' }}>
+                {s.label}
+              </p>
             </div>
           </div>
         ))}
