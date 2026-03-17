@@ -36,7 +36,7 @@ export default function ClientsListPage() {
       const flowMap = new Map((flows ?? []).map((f: any) => [f.client_id, f.flow_template_id]))
       const templateMap = new Map((templates ?? []).map((t: any) => [t.id, t.type]))
       setClients(
-        (profiles ?? []).map((p) => {
+        (profiles ?? []).map((p: any) => {
           const flowTemplateId = flowMap.get(p.id)
           const templateType = flowTemplateId ? templateMap.get(flowTemplateId) : undefined
           const serviceType = templateType === 'web' ? 'Web' : templateType === 'social' ? 'Redes Sociales' : undefined
