@@ -37,9 +37,9 @@ export default function StrategyPage() {
         supabase.from('social_strategies').select('*, profiles!social_strategies_client_id_fkey(full_name)').order('created_at', { ascending: false }),
         supabase.from('profiles').select('id, full_name').eq('role', 'client').order('full_name'),
       ])
-      setClients((clientsData ?? []).map((c) => ({ id: c.id, fullName: c.full_name ?? '' })))
+      setClients((clientsData ?? []).map((c: any) => ({ id: c.id, fullName: c.full_name ?? '' })))
       setStrategies(
-        (strats ?? []).map((s) => ({
+        (strats ?? []).map((s: any) => ({
           id: s.id,
           clientId: s.client_id,
           clientName: (s.profiles as { full_name: string } | null)?.full_name ?? '',

@@ -39,7 +39,7 @@ export default function ClientSocialCalendarPage() {
       const supabase = createClient()
       const { data } = await supabase.from('posts').select('*').eq('client_id', user!.id).order('scheduled_date')
       setClientPosts(
-        (data ?? []).map((p) => ({
+        (data ?? []).map((p: any) => ({
           id: p.id, clientId: p.client_id, clientName: '',
           title: p.title ?? undefined, content: p.content ?? '',
           mediaUrls: p.media_urls ?? [], platforms: p.platforms ?? [],

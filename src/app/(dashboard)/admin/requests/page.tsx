@@ -26,13 +26,13 @@ export default function AdminRequestsPage() {
         supabase.from('request_statuses').select('*').order('order_index'),
       ])
       setStatuses(
-        (sts ?? []).map((s) => ({
+        (sts ?? []).map((s: any) => ({
           id: s.id, name: s.name, color: s.color,
           orderIndex: s.order_index, isDefault: s.is_default, createdAt: s.created_at,
         }))
       )
       setRequests(
-        (reqs ?? []).map((r) => ({
+        (reqs ?? []).map((r: any) => ({
           id: r.id,
           clientId: r.client_id,
           clientName: (r.profiles as { full_name: string } | null)?.full_name ?? '',

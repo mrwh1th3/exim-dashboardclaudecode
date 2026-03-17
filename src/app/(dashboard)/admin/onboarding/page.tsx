@@ -70,11 +70,11 @@ export default function OnboardingPage() {
         supabase.from('client_flows').select('*').order('created_at', { ascending: false }),
         supabase.from('profiles').select('id, full_name, company_name, is_active').eq('role', 'client').order('full_name'),
       ])
-      setClients((clientsData ?? []).map((c) => ({ id: c.id, fullName: c.full_name ?? '', companyName: c.company_name ?? undefined, isActive: c.is_active })))
-      setFlows((flowsData ?? []).map((f) => ({ id: f.id, name: f.name, description: f.description ?? undefined, type: f.type as FlowType, isActive: f.is_active, createdBy: '', createdAt: f.created_at, updatedAt: f.updated_at })))
-      setStages((stagesData ?? []).map((s) => ({ id: s.id, flowTemplateId: s.flow_template_id, name: s.name, description: s.description ?? undefined, orderIndex: s.order_index, formIds: s.form_ids ?? [], createdAt: s.created_at })))
-      setForms((formsData ?? []).map((f) => ({ id: f.id, name: f.name, description: f.description ?? undefined, schema: f.schema ?? { fields: [] }, createdBy: '', createdAt: f.created_at, updatedAt: f.updated_at })))
-      setClientFlows((cfData ?? []).map((cf) => ({ id: cf.id, clientId: cf.client_id, flowTemplateId: cf.flow_template_id, status: cf.status as FlowStatus, assignedBy: cf.assigned_by ?? '', startedAt: cf.started_at ?? undefined, completedAt: cf.completed_at ?? undefined, createdAt: cf.created_at })))
+      setClients((clientsData ?? []).map((c: any) => ({ id: c.id, fullName: c.full_name ?? '', companyName: c.company_name ?? undefined, isActive: c.is_active })))
+      setFlows((flowsData ?? []).map((f: any) => ({ id: f.id, name: f.name, description: f.description ?? undefined, type: f.type as FlowType, isActive: f.is_active, createdBy: '', createdAt: f.created_at, updatedAt: f.updated_at })))
+      setStages((stagesData ?? []).map((s: any) => ({ id: s.id, flowTemplateId: s.flow_template_id, name: s.name, description: s.description ?? undefined, orderIndex: s.order_index, formIds: s.form_ids ?? [], createdAt: s.created_at })))
+      setForms((formsData ?? []).map((f: any) => ({ id: f.id, name: f.name, description: f.description ?? undefined, schema: f.schema ?? { fields: [] }, createdBy: '', createdAt: f.created_at, updatedAt: f.updated_at })))
+      setClientFlows((cfData ?? []).map((cf: any) => ({ id: cf.id, clientId: cf.client_id, flowTemplateId: cf.flow_template_id, status: cf.status as FlowStatus, assignedBy: cf.assigned_by ?? '', startedAt: cf.started_at ?? undefined, completedAt: cf.completed_at ?? undefined, createdAt: cf.created_at })))
     }
     load()
   }, [])

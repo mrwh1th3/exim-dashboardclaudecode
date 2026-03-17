@@ -41,12 +41,12 @@ export default function AdminWebPagesPage() {
         supabase.from('web_pages').select('*, profiles!web_pages_client_id_fkey(full_name, company_name)').order('created_at', { ascending: false }),
         supabase.from('profiles').select('id, full_name, company_name').eq('role', 'client').order('full_name'),
       ])
-      setClients((clientsData ?? []).map((c) => ({
+      setClients((clientsData ?? []).map((c: any) => ({
         id: c.id,
         displayName: c.company_name ?? c.full_name ?? '',
       })))
       setPages(
-        (pagesData ?? []).map((p) => {
+        (pagesData ?? []).map((p: any) => {
           const profile = p.profiles as { full_name: string; company_name: string } | null
           return {
             id: p.id,

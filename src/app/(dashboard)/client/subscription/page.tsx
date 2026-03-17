@@ -40,7 +40,7 @@ export default function ClientSubscriptionPage() {
         supabase.from('subscription_plans').select('*').eq('is_active', true).order('price'),
         supabase.from('invoices').select('*').eq('client_id', user!.id).order('created_at', { ascending: false }),
       ])
-      const mappedPlans: SubscriptionPlan[] = (plansData ?? []).map((p) => ({
+      const mappedPlans: SubscriptionPlan[] = (plansData ?? []).map((p: any) => ({
         id: p.id, name: p.name, description: p.description ?? undefined,
         price: p.price, currency: p.currency, interval: p.interval,
         features: p.features ?? [], isActive: p.is_active,
@@ -57,7 +57,7 @@ export default function ClientSubscriptionPage() {
         setPlan(mappedPlans.find((p) => p.id === sub.planId) ?? null)
       }
       setInvoices(
-        (invoicesData ?? []).map((inv) => ({
+        (invoicesData ?? []).map((inv: any) => ({
           id: inv.id, amount: inv.amount, currency: inv.currency, status: inv.status,
           periodStart: inv.period_start, periodEnd: inv.period_end,
           paidAt: inv.paid_at ?? undefined, createdAt: inv.created_at,

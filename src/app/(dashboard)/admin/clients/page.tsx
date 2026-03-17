@@ -33,8 +33,8 @@ export default function ClientsListPage() {
         supabase.from('client_flows').select('client_id, flow_template_id'),
         supabase.from('flow_templates').select('id, type'),
       ])
-      const flowMap = new Map((flows ?? []).map((f) => [f.client_id, f.flow_template_id]))
-      const templateMap = new Map((templates ?? []).map((t) => [t.id, t.type]))
+      const flowMap = new Map((flows ?? []).map((f: any) => [f.client_id, f.flow_template_id]))
+      const templateMap = new Map((templates ?? []).map((t: any) => [t.id, t.type]))
       setClients(
         (profiles ?? []).map((p) => {
           const flowTemplateId = flowMap.get(p.id)

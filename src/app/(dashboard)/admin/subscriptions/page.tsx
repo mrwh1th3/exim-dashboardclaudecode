@@ -48,19 +48,19 @@ export default function SubscriptionsPage() {
         supabase.from('invoices').select('*').order('created_at', { ascending: false }),
         supabase.from('profiles').select('id, full_name').eq('role', 'client').order('full_name'),
       ])
-      setClients((clientsData ?? []).map((c) => ({ id: c.id, fullName: c.full_name ?? '' })))
-      setPlans((plansData ?? []).map((p) => ({
+      setClients((clientsData ?? []).map((c: any) => ({ id: c.id, fullName: c.full_name ?? '' })))
+      setPlans((plansData ?? []).map((p: any) => ({
         id: p.id, name: p.name, description: p.description ?? undefined,
         price: p.price, currency: p.currency, interval: p.interval,
         features: p.features ?? [], isActive: p.is_active,
         stripePriceId: p.stripe_price_id ?? undefined, createdAt: p.created_at,
       })))
-      setSubscriptions((subsData ?? []).map((s) => ({
+      setSubscriptions((subsData ?? []).map((s: any) => ({
         id: s.id, clientId: s.client_id, planId: s.plan_id, status: s.status,
         currentPeriodStart: s.current_period_start ?? undefined,
         currentPeriodEnd: s.current_period_end ?? undefined,
       })))
-      setInvoices((invData ?? []).map((inv) => ({
+      setInvoices((invData ?? []).map((inv: any) => ({
         id: inv.id, clientId: inv.client_id, amount: inv.amount, status: inv.status,
         periodStart: inv.period_start, periodEnd: inv.period_end,
         paidAt: inv.paid_at ?? undefined, createdAt: inv.created_at,

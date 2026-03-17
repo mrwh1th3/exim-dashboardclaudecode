@@ -58,9 +58,9 @@ export default function SocialCalendarPage() {
         supabase.from('posts').select('*, profiles!posts_client_id_fkey(full_name)').order('created_at', { ascending: false }),
         supabase.from('profiles').select('id, full_name').eq('role', 'client').order('full_name'),
       ])
-      setClients((clientsData ?? []).map((c) => ({ id: c.id, fullName: c.full_name ?? '' })))
+      setClients((clientsData ?? []).map((c: any) => ({ id: c.id, fullName: c.full_name ?? '' })))
       setPosts(
-        (postsData ?? []).map((p) => ({
+        (postsData ?? []).map((p: any) => ({
           id: p.id,
           clientId: p.client_id,
           clientName: (p.profiles as { full_name: string } | null)?.full_name ?? '',
