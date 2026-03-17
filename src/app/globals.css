@@ -336,3 +336,26 @@
 .brand-gradient {
   background: linear-gradient(135deg, oklch(0.47 0.22 264), oklch(0.42 0.20 280));
 }
+
+/* ── Social button sweep effect ──────────────────────────────────────────── */
+.btn-sweep {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+}
+.btn-sweep::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: oklch(0.79 0.008 82);
+  border-radius: 100%;
+  transform: translate(150%, 150%) scale(2.5);
+  transition: transform 1s cubic-bezier(0.16, 1, 0.32, 1);
+}
+.btn-sweep:hover::before {
+  transform: translate(0%, 0%) scale(2.5);
+}
+.btn-sweep:hover {
+  color: oklch(0.08 0 0) !important;
+}
