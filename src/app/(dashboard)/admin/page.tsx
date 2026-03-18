@@ -55,17 +55,17 @@ function MetricCard({
       className="animate-fade-up relative overflow-hidden rounded-xl p-6 transition-all duration-300 hover:-translate-y-1"
       style={{
         animationDelay: `${delay}ms`,
-        background: 'oklch(0.17 0 0)',
-        border: '1px solid oklch(1 0 0 / 7%)',
-        boxShadow: '0 1px 3px oklch(0 0 0 / 30%)',
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        boxShadow: '0 1px 3px oklch(0 0 0 / 15%)',
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = `${accentColor}30`
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow = `0 0 40px ${accentColor}12, 0 4px 20px oklch(0 0 0 / 30%)`
+        (e.currentTarget as HTMLDivElement).style.borderColor = `${accentColor}40`
+        ;(e.currentTarget as HTMLDivElement).style.boxShadow = `0 0 40px ${accentColor}12, 0 4px 20px oklch(0 0 0 / 15%)`
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = 'oklch(1 0 0 / 7%)'
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px oklch(0 0 0 / 30%)'
+        (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'
+        ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px oklch(0 0 0 / 15%)'
       }}
     >
       {/* Left accent bar */}
@@ -166,7 +166,7 @@ function SectionHeader({ icon, title, accent, count }: {
   return (
     <div
       className="flex items-center justify-between px-5 py-4"
-      style={{ borderBottom: '1px solid oklch(1 0 0 / 6%)' }}
+      style={{ borderBottom: '1px solid var(--border)' }}
     >
       <div className="flex items-center gap-2.5">
         <div
@@ -202,8 +202,8 @@ function Panel({ children, className, style }: {
     <div
       className={cn('overflow-hidden rounded-xl', className)}
       style={{
-        background: 'oklch(0.17 0 0)',
-        border: '1px solid oklch(1 0 0 / 7%)',
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
         ...style,
       }}
     >
@@ -216,8 +216,7 @@ function Panel({ children, className, style }: {
 function Skeleton({ className }: { className?: string }) {
   return (
     <div
-      className={cn('rounded animate-pulse', className)}
-      style={{ background: 'oklch(1 0 0 / 6%)' }}
+      className={cn('rounded animate-pulse bg-muted', className)}
     />
   )
 }
@@ -365,8 +364,8 @@ export default function AdminDashboardPage() {
         <div
           className="hidden sm:flex items-center gap-2 rounded-lg px-4 py-2.5"
           style={{
-            background: 'oklch(0.17 0 0)',
-            border: '1px solid oklch(1 0 0 / 7%)',
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
           }}
         >
           <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -431,9 +430,9 @@ export default function AdminDashboardPage() {
                   key={req.id}
                   className="flex items-center gap-4 px-5 py-4 transition-colors"
                   style={{
-                    borderBottom: i < requests.length - 1 ? '1px solid oklch(1 0 0 / 5%)' : 'none',
+                    borderBottom: i < requests.length - 1 ? '1px solid var(--border)' : 'none',
                   }}
-                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'oklch(1 0 0 / 2.5%)'}
+                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--muted)'}
                   onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = ''}
                 >
                   <Avatar name={req.clientName} />
@@ -445,10 +444,10 @@ export default function AdminDashboardPage() {
                     <span
                       className="hidden sm:inline-flex items-center rounded-sm px-2 py-0.5 text-muted-foreground"
                       style={{
-                        background: 'oklch(1 0 0 / 5%)',
+                        background: 'var(--muted)',
                         fontFamily: 'var(--font-mono)',
                         fontSize: '0.6rem',
-                        border: '1px solid oklch(1 0 0 / 8%)',
+                        border: '1px solid var(--border)',
                       }}
                     >
                       {typeLabel(req.type)}
@@ -502,7 +501,7 @@ export default function AdminDashboardPage() {
                     {idx < activity.length - 1 && (
                       <div
                         className="absolute top-8 w-px"
-                        style={{ height: '24px', background: 'oklch(1 0 0 / 8%)' }}
+                        style={{ height: '24px', background: 'var(--border)' }}
                       />
                     )}
                   </div>
@@ -540,9 +539,9 @@ export default function AdminDashboardPage() {
           <div
             key={s.label}
             className="flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all duration-200"
-            style={{ background: 'oklch(0.17 0 0)', border: '1px solid oklch(1 0 0 / 7%)' }}
-            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = `${s.color}30`}
-            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = 'oklch(1 0 0 / 7%)'}
+            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = `${s.color}40`}
+            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'}
           >
             <div style={{ color: s.color }}>{s.icon}</div>
             <div>

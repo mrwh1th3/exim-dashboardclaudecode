@@ -2,59 +2,78 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { SubscriptionPlan } from '@/types/subscriptions'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { StatCard } from '@/components/shared/stat-card'
 import { toast } from 'sonner'
-import { Plus, Edit, Trash2, Check, ToggleLeft, ToggleRight, DollarSign, Users, TrendingUp, ArrowUpRight, FileText } from 'lucide-react'
+import { ExternalLink, ToggleLeft, ToggleRight, DollarSign, Users, TrendingUp, ArrowUpRight, FileText, Check } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { ShineBorder } from '@/components/ui/shine-border'
 import { NumberTicker } from '@/components/ui/number-ticker'
 
+interface StripePlan {
+  id: string
+  name: string
+  description: string | null
+  prices: {
+    id: string
+    amount: number
+    currency: string
+    type: 'one_time' | 'recurring'
+    interval: string | null
+    intervalCount: number
+  }[]
+}
+
+interface LocalPlan { id: string; name: string; price: number; stripePriceId?: string }
 interface Sub { id: string; clientId: string; planId: string; status: string; currentPeriodStart?: string; currentPeriodEnd?: string }
 interface Invoice { id: string; clientId: string; amount: number; status: string; periodStart: string; periodEnd: string; paidAt?: string; createdAt: string }
 interface ClientOption { id: string; fullName: string }
 
+function intervalLabel(interval: string | null, count: number) {
+  if (!interval) return ''
+  if (interval === 'month' && count === 1) return '/mes'
+  if (interval === 'month' && count === 2) return '/2 meses'
+  if (interval === 'week' && count === 2) return '/2 semanas'
+  if (interval === 'week' && count === 1) return '/semana'
+  if (interval === 'year' && count === 1) return '/año'
+  return `/ ${count} ${interval}`
+}
+
+function defaultPrice(plan: StripePlan) {
+  // prefer monthly recurring, then shortest interval, then first
+  return (
+    plan.prices.find((p) => p.type === 'recurring' && p.interval === 'month' && p.intervalCount === 1) ??
+    plan.prices.find((p) => p.type === 'recurring') ??
+    plan.prices[0]
+  )
+}
+
 export default function SubscriptionsPage() {
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
+  const [stripePlans, setStripePlans] = useState<StripePlan[]>([])
+  const [localPlans, setLocalPlans] = useState<LocalPlan[]>([])
   const [subscriptions, setSubscriptions] = useState<Sub[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [clients, setClients] = useState<ClientOption[]>([])
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null)
   const [invoiceSheetOpen, setInvoiceSheetOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
-  const [newPlan, setNewPlan] = useState({ name: '', description: '', price: '', interval: 'monthly' as 'monthly' | 'yearly', features: '' })
-  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', interval: 'monthly' as 'monthly' | 'yearly', features: '' })
+  const [loadingPlans, setLoadingPlans] = useState(true)
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
       const [{ data: plansData }, { data: subsData }, { data: invData }, { data: clientsData }] = await Promise.all([
-        supabase.from('subscription_plans').select('*').order('price'),
+        supabase.from('subscription_plans').select('id, name, price, stripe_price_id').order('price'),
         supabase.from('client_subscriptions').select('*').order('created_at', { ascending: false }),
         supabase.from('invoices').select('*').order('created_at', { ascending: false }),
         supabase.from('profiles').select('id, full_name').eq('role', 'client').order('full_name'),
       ])
+      setLocalPlans((plansData ?? []).map((p: any) => ({ id: p.id, name: p.name, price: p.price, stripePriceId: p.stripe_price_id })))
       setClients((clientsData ?? []).map((c: any) => ({ id: c.id, fullName: c.full_name ?? '' })))
-      setPlans((plansData ?? []).map((p: any) => ({
-        id: p.id, name: p.name, description: p.description ?? undefined,
-        price: p.price, currency: p.currency, interval: p.interval,
-        features: p.features ?? [], isActive: p.is_active,
-        stripePriceId: p.stripe_price_id ?? undefined, createdAt: p.created_at,
-      })))
       setSubscriptions((subsData ?? []).map((s: any) => ({
         id: s.id, clientId: s.client_id, planId: s.plan_id, status: s.status,
         currentPeriodStart: s.current_period_start ?? undefined,
@@ -67,11 +86,18 @@ export default function SubscriptionsPage() {
       })))
     }
     load()
+
+    // Load Stripe plans
+    fetch('/api/stripe/plans')
+      .then((r) => r.json())
+      .then((d) => { if (d.plans) setStripePlans(d.plans) })
+      .catch(() => toast.error('Error al cargar planes de Stripe'))
+      .finally(() => setLoadingPlans(false))
   }, [])
 
   const activeSubscriptions = subscriptions.filter((s) => s.status === 'active')
   const mrr = activeSubscriptions.reduce((sum, sub) => {
-    const p = plans.find((pl) => pl.id === sub.planId)
+    const p = localPlans.find((pl) => pl.id === sub.planId)
     return sum + (p?.price ?? 0)
   }, 0)
 
@@ -82,64 +108,8 @@ export default function SubscriptionsPage() {
   const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0)
 
   const getClientName = (clientId: string) => clients.find((c) => c.id === clientId)?.fullName ?? clientId
-  const getPlanName = (planId: string) => plans.find((p) => p.id === planId)?.name ?? planId
+  const getPlanName = (planId: string) => localPlans.find((p) => p.id === planId)?.name ?? planId
   const clientInvoices = selectedClientId ? invoices.filter((inv) => inv.clientId === selectedClientId) : []
-
-  const handleCreatePlan = async () => {
-    if (!newPlan.name || !newPlan.price) { toast.error('Nombre y precio son requeridos'); return }
-    const supabase = createClient()
-    const { data, error } = await supabase.from('subscription_plans').insert({
-      name: newPlan.name, description: newPlan.description || null,
-      price: parseFloat(newPlan.price), currency: 'MXN', interval: newPlan.interval,
-      features: newPlan.features.split('\n').filter((f) => f.trim()), is_active: true,
-    }).select().single()
-    if (error) { toast.error('Error al crear el plan'); return }
-    setPlans((prev) => [...prev, { id: data.id, name: data.name, description: data.description ?? undefined, price: data.price, currency: data.currency, interval: data.interval, features: data.features ?? [], isActive: data.is_active, createdAt: data.created_at }])
-    setNewPlan({ name: '', description: '', price: '', interval: 'monthly', features: '' })
-    setDialogOpen(false)
-    toast.success('Plan creado exitosamente')
-  }
-
-  const openEditDialog = (plan: SubscriptionPlan) => {
-    setEditingPlan(plan)
-    setEditForm({ name: plan.name, description: plan.description ?? '', price: plan.price.toString(), interval: plan.interval, features: plan.features.join('\n') })
-    setEditDialogOpen(true)
-  }
-
-  const handleEditPlan = async () => {
-    if (!editingPlan || !editForm.name || !editForm.price) { toast.error('Nombre y precio son requeridos'); return }
-    const supabase = createClient()
-    const { error } = await supabase.from('subscription_plans').update({
-      name: editForm.name, description: editForm.description || null,
-      price: parseFloat(editForm.price), interval: editForm.interval,
-      features: editForm.features.split('\n').filter((f) => f.trim()),
-    }).eq('id', editingPlan.id)
-    if (error) { toast.error('Error al actualizar el plan'); return }
-    setPlans((prev) => prev.map((p) => p.id === editingPlan.id ? { ...p, name: editForm.name, description: editForm.description, price: parseFloat(editForm.price), interval: editForm.interval, features: editForm.features.split('\n').filter((f) => f.trim()) } : p))
-    setEditDialogOpen(false)
-    toast.success('Plan actualizado exitosamente')
-  }
-
-  const handleDeletePlan = async () => {
-    if (!editingPlan) return
-    const hasSubs = subscriptions.some((s) => s.planId === editingPlan.id && s.status === 'active')
-    if (hasSubs) { toast.error('No se puede eliminar un plan con suscripciones activas'); setDeleteDialogOpen(false); return }
-    const supabase = createClient()
-    const { error } = await supabase.from('subscription_plans').delete().eq('id', editingPlan.id)
-    if (error) { toast.error('Error al eliminar el plan'); return }
-    setPlans((prev) => prev.filter((p) => p.id !== editingPlan.id))
-    setDeleteDialogOpen(false)
-    toast.success('Plan eliminado exitosamente')
-  }
-
-  const togglePlanActive = async (planId: string) => {
-    const plan = plans.find((p) => p.id === planId)
-    if (!plan) return
-    const supabase = createClient()
-    await supabase.from('subscription_plans').update({ is_active: !plan.isActive }).eq('id', planId)
-    setPlans((prev) => prev.map((p) => p.id === planId ? { ...p, isActive: !p.isActive } : p))
-    toast.success('Estado del plan actualizado')
-  }
 
   const toggleSubscriptionStatus = async (subId: string) => {
     const sub = subscriptions.find((s) => s.id === subId)
@@ -157,7 +127,7 @@ export default function SubscriptionsPage() {
         <StatCard title="Ingresos del Mes" value={`$${mrr.toLocaleString()} MXN`} icon={<DollarSign size={24} />} description="MRR actual" />
         <StatCard title="Suscripciones Activas" value={activeSubscriptions.length} icon={<Users size={24} />} description={`de ${subscriptions.length} totales`} />
         <StatCard title="Ingresos Totales" value={`$${totalRevenue.toLocaleString()} MXN`} icon={<TrendingUp size={24} />} description="Acumulado" />
-        <StatCard title="Planes Activos" value={plans.filter((p) => p.isActive).length} icon={<ArrowUpRight size={24} />} description="planes disponibles" />
+        <StatCard title="Planes en Stripe" value={stripePlans.length} icon={<ArrowUpRight size={24} />} description="planes activos" />
       </div>
 
       <Card>
@@ -186,73 +156,97 @@ export default function SubscriptionsPage() {
           <TabsTrigger value="subscriptions">Suscripciones</TabsTrigger>
         </TabsList>
 
+        {/* ── Plans tab — source of truth: Stripe ── */}
         <TabsContent value="plans" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">Planes</h2>
-              <p className="text-muted-foreground">Gestiona los planes de suscripción disponibles</p>
+              <p className="text-muted-foreground">Planes activos sincronizados desde Stripe</p>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button><Plus className="mr-2 h-4 w-4" />Nuevo Plan</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Crear Nuevo Plan</DialogTitle><DialogDescription>Define las características del nuevo plan.</DialogDescription></DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2"><Label>Nombre</Label><Input value={newPlan.name} onChange={(e) => setNewPlan({ ...newPlan, name: e.target.value })} placeholder="Ej: Plan Premium" /></div>
-                  <div className="space-y-2"><Label>Descripción</Label><Input value={newPlan.description} onChange={(e) => setNewPlan({ ...newPlan, description: e.target.value })} placeholder="Descripción del plan" /></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Precio (MXN)</Label><Input type="number" value={newPlan.price} onChange={(e) => setNewPlan({ ...newPlan, price: e.target.value })} placeholder="0.00" /></div>
-                    <div className="space-y-2">
-                      <Label>Intervalo</Label>
-                      <Select value={newPlan.interval} onValueChange={(v) => setNewPlan({ ...newPlan, interval: v as 'monthly' | 'yearly' })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="monthly">Mensual</SelectItem><SelectItem value="yearly">Anual</SelectItem></SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2"><Label>Características (una por línea)</Label><Textarea value={newPlan.features} onChange={(e) => setNewPlan({ ...newPlan, features: e.target.value })} placeholder="Característica 1&#10;Característica 2" rows={5} /></div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreatePlan}>Crear Plan</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button variant="outline" asChild>
+              <a
+                href="https://dashboard.stripe.com/products"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Gestionar en Stripe
+              </a>
+            </Button>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {plans.map((plan) => (
-              <Card key={plan.id} className="relative overflow-hidden">
-                {plan.price >= 1999 && <ShineBorder shineColor={['#d86226', '#7e230c', '#f59e0b']} duration={10} borderWidth={2} />}
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{plan.name}</CardTitle>
-                    <Badge variant={plan.isActive ? 'default' : 'secondary'}>{plan.isActive ? 'Activo' : 'Inactivo'}</Badge>
-                  </div>
-                  {plan.description && <CardDescription>{plan.description}</CardDescription>}
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4"><span className="text-3xl font-bold">$<NumberTicker value={plan.price} /></span><span className="text-muted-foreground ml-1">MXN/mes</span></div>
-                  <ul className="space-y-2 mb-4">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm"><Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /><span>{feature}</span></li>
-                    ))}
-                  </ul>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditDialog(plan)}><Edit className="mr-1 h-3 w-3" />Editar</Button>
-                    <Button variant="ghost" size="sm" onClick={() => togglePlanActive(plan.id)}>
-                      {plan.isActive ? <ToggleRight className="h-4 w-4 text-green-600" /> : <ToggleLeft className="h-4 w-4 text-muted-foreground" />}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => { setEditingPlan(plan); setDeleteDialogOpen(true) }}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+          {loadingPlans ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="h-48 animate-pulse opacity-50" />
+              ))}
+            </div>
+          ) : stripePlans.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-3 py-14 text-muted-foreground">
+                <p className="text-sm">No hay planes activos en Stripe.</p>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://dashboard.stripe.com/products" target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />Crear plan en Stripe
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {stripePlans.map((plan) => {
+                const primary = defaultPrice(plan)
+                const isPremium = primary ? primary.amount >= 1999 : false
+                return (
+                  <Card key={plan.id} className="relative overflow-hidden">
+                    {isPremium && <ShineBorder shineColor={['#d86226', '#7e230c', '#f59e0b']} duration={10} borderWidth={2} />}
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">{plan.name}</CardTitle>
+                        <Badge variant="default">Activo</Badge>
+                      </div>
+                      {plan.description && <CardDescription>{plan.description}</CardDescription>}
+                    </CardHeader>
+                    <CardContent>
+                      {primary && (
+                        <div className="mb-4">
+                          <span className="text-3xl font-bold">
+                            $<NumberTicker value={primary.amount} />
+                          </span>
+                          <span className="text-muted-foreground ml-1">
+                            {primary.currency}{intervalLabel(primary.interval, primary.intervalCount)}
+                          </span>
+                        </div>
+                      )}
+                      {/* Extra prices if multiple */}
+                      {plan.prices.length > 1 && (
+                        <ul className="space-y-1 mb-4">
+                          {plan.prices.filter((p) => p.id !== primary?.id).map((p) => (
+                            <li key={p.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Check className="h-3 w-3 text-green-500 shrink-0" />
+                              ${p.amount.toLocaleString()} {p.currency}{intervalLabel(p.interval, p.intervalCount)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <Button variant="outline" size="sm" className="w-full" asChild>
+                        <a
+                          href={`https://dashboard.stripe.com/products/${plan.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="mr-1 h-3 w-3" />Ver en Stripe
+                        </a>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
 
+        {/* ── Subscriptions tab — unchanged ── */}
         <TabsContent value="subscriptions" className="space-y-4">
           <div><h2 className="text-2xl font-bold tracking-tight">Suscripciones de Clientes</h2><p className="text-muted-foreground">Gestiona las suscripciones activas</p></div>
           <Card>
@@ -302,41 +296,6 @@ export default function SubscriptionsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Editar Plan</DialogTitle><DialogDescription>Modifica las características del plan.</DialogDescription></DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label>Nombre</Label><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Descripción</Label><Input value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Precio (MXN)</Label><Input type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} /></div>
-              <div className="space-y-2">
-                <Label>Intervalo</Label>
-                <Select value={editForm.interval} onValueChange={(v) => setEditForm({ ...editForm, interval: v as 'monthly' | 'yearly' })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="monthly">Mensual</SelectItem><SelectItem value="yearly">Anual</SelectItem></SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2"><Label>Características (una por línea)</Label><Textarea value={editForm.features} onChange={(e) => setEditForm({ ...editForm, features: e.target.value })} rows={5} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleEditPlan}>Guardar Cambios</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Eliminar Plan</DialogTitle><DialogDescription>¿Estás seguro de que deseas eliminar el plan &quot;{editingPlan?.name}&quot;? Esta acción no se puede deshacer.</DialogDescription></DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleDeletePlan}>Eliminar Plan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Sheet open={invoiceSheetOpen} onOpenChange={setInvoiceSheetOpen}>
         <SheetContent className="sm:max-w-lg">
