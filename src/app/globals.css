@@ -211,6 +211,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    font-family: var(--font-display), sans-serif;
   }
   body {
     @apply bg-background text-foreground;
@@ -219,7 +220,6 @@
     letter-spacing: 0.04em;
   }
   html {
-    @apply font-sans;
     scroll-behavior: smooth;
   }
   button, a, [role="button"] {
