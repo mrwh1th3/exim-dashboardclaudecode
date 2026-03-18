@@ -36,9 +36,16 @@ export async function POST(request: NextRequest) {
   // Attempt normal login first
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
-  // If login succeeds, get profile by user ID (required for RLS)
-  if (data?.user && !error) {
-    const { data: profile } = await supabase
+  // If login succeeds, get profile using the access token directly
+  // (createServerClient reads cookies from the *request*, which don't have the
+  //  new session yet — we must use the access_token from the sign-in response)
+  if (data?.user && !error && data.session) {
+    const sessionClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${data.session.access_token}` } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+
+    const { data: profile } = await sessionClient
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
