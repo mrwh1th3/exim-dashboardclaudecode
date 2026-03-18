@@ -1,5 +1,51 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
+import { getAdminClient } from '@/lib/supabase/admin'
+import type { NextRequest } from 'next/server'
+
+export async function POST(request: NextRequest) {
+  try {
+    const { priceId, name, description } = await request.json()
+    if (!priceId || !name) {
+      return NextResponse.json({ error: 'priceId y name son requeridos' }, { status: 400 })
+    }
+
+    const adminClient = getAdminClient()
+
+    // Prevent duplicate import
+    const { data: existing } = await adminClient
+      .from('subscription_plans')
+      .select('id')
+      .eq('stripe_price_id', priceId)
+      .maybeSingle()
+    if (existing) {
+      return NextResponse.json({ error: 'Este precio ya fue importado' }, { status: 409 })
+    }
+
+    const price = await stripe.prices.retrieve(priceId)
+    const amount = (price.unit_amount ?? 0) / 100
+    const currency = price.currency.toUpperCase()
+    const interval: 'monthly' | 'yearly' =
+      price.recurring?.interval === 'year' ? 'yearly' : 'monthly'
+
+    const { error } = await adminClient.from('subscription_plans').insert({
+      name,
+      description: description || null,
+      price: amount,
+      currency,
+      interval,
+      features: [],
+      is_active: true,
+      stripe_price_id: priceId,
+    })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('Error importing plan:', err)
+    return NextResponse.json({ error: 'Error al importar plan' }, { status: 500 })
+  }
+}
 
 export async function GET() {
   try {
