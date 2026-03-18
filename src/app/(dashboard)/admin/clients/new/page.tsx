@@ -188,7 +188,9 @@ export default function NewClientPage() {
               <Label>Flujo de onboarding</Label>
               <Select value={flowTemplateId} onValueChange={setFlowTemplateId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un flujo" />
+                  <SelectValue placeholder="Selecciona un flujo">
+                    {flowTemplateId ? filteredFlows.find(f => f.id === flowTemplateId)?.name : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {filteredFlows.map((flow) => (
@@ -209,7 +211,9 @@ export default function NewClientPage() {
               <Label>Plan de suscripción</Label>
               <Select value={planId} onValueChange={setPlanId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un plan" />
+                  <SelectValue placeholder="Selecciona un plan">
+                    {planId ? (() => { const p = plans.find(pl => pl.id === planId); return p ? `${p.name} — $${p.price} ${p.currency}/${p.interval === 'monthly' ? 'mes' : 'año'}` : undefined })() : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {plans.map((plan) => (

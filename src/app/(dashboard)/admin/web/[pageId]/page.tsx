@@ -84,7 +84,7 @@ export default function AdminWebPageDetailPage() {
           Volver
         </Button>
         <div className="text-center py-16">
-          <h2 className="text-xl font-semibold">P\u00e1gina no encontrada</h2>
+          <h2 className="text-xl font-semibold">Página no encontrada</h2>
           <p className="text-muted-foreground mt-1">
             La p\u00e1gina web que buscas no existe.
           </p>

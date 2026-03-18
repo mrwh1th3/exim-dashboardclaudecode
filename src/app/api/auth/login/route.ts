@@ -7,9 +7,8 @@ import type { NextRequest } from 'next/server'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://izjnvkwgzmrfpaxjmwjb.supabase.co'
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6am52a3dnem1yZnBheGptd2piIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwNTA5NDcsImV4cCI6MjA4NzYyNjk0N30.lvlD7qjMUnSbmEoDhFXnyDUZ1BTLcHPJkZrknTDbg0I'
 // Only treat as valid if it looks like a real JWT (prevents placeholder values)
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY?.startsWith('ey')
-  ? process.env.SUPABASE_SERVICE_ROLE_KEY
-  : undefined
+const _serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.service_role
+const SUPABASE_SERVICE_KEY = _serviceKey?.startsWith('ey') ? _serviceKey : undefined
 
 export async function POST(request: NextRequest) {
   const { email, password } = await request.json()

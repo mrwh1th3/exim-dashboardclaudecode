@@ -152,7 +152,7 @@ export default function AdminWebPagesPage() {
         </Table>
       </Card>
 
-      <Dialog open={newPageOpen} onOpenChange={setNewPageOpen}>
+      <Dialog open={newPageOpen} onOpenChange={setNewPageOpen} dismissible={false}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nueva Página Web</DialogTitle>

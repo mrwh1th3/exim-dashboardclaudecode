@@ -406,7 +406,7 @@ export default function OnboardingPage() {
       </Sheet>
 
       {/* Dialog: Asignar Flujo */}
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen} dismissible={false}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Asignar Flujo</DialogTitle><DialogDescription>Asigna un flujo de onboarding a un cliente</DialogDescription></DialogHeader>
           <div className="space-y-4">

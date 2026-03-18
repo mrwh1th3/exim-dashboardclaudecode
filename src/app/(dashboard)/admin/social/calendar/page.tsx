@@ -142,7 +142,7 @@ export default function SocialCalendarPage() {
           <h2 className="text-2xl font-bold tracking-tight">Calendario de Contenido</h2>
           <p className="text-muted-foreground">Visualiza y gestiona las publicaciones programadas</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen} dismissible={false}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Nuevo Post</Button>
           </DialogTrigger>

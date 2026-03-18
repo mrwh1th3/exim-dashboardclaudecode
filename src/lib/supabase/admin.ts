@@ -6,7 +6,7 @@ let _adminClient: SupabaseClient | null = null
 export function getAdminClient(): SupabaseClient {
   if (!_adminClient) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.service_role
     if (!url || !key) {
       throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set')
     }

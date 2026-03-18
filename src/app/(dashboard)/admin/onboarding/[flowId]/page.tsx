@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useMemo } from 'react'
+import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -33,11 +33,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-import {
-  mockFlowTemplates,
-  mockFlowStages,
-  mockFormTemplates,
-} from '@/data/mock-flows'
+import { createClient } from '@/lib/supabase/client'
 import type {
   FlowTemplate,
   FlowStage,
@@ -331,21 +327,57 @@ function SortableStageCard({
 export default function FlowEditorPage({ params }: FlowEditorPageProps) {
   const { flowId } = use(params)
 
-  const initialFlow = mockFlowTemplates.find((f) => f.id === flowId)
-  const initialStages = mockFlowStages
-    .filter((s) => s.flowTemplateId === flowId)
-    .sort((a, b) => a.orderIndex - b.orderIndex)
-
-  const [flow, setFlow] = useState<FlowTemplate | null>(
-    initialFlow ? { ...initialFlow } : null
-  )
-  const [stages, setStages] = useState<FlowStage[]>(
-    initialStages.map((s) => ({ ...s }))
-  )
-  const [forms] = useState<FormTemplate[]>([...mockFormTemplates])
+  const [flow, setFlow] = useState<FlowTemplate | null>(null)
+  const [stages, setStages] = useState<FlowStage[]>([])
+  const [forms, setForms] = useState<FormTemplate[]>([])
+  const [loading, setLoading] = useState(true)
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set())
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewStageIndex, setPreviewStageIndex] = useState(0)
+
+  useEffect(() => {
+    const supabase = createClient()
+    void (async () => {
+      const [{ data: flowData }, { data: stagesData }, { data: formsData }] = await Promise.all([
+        supabase.from('flow_templates').select('*').eq('id', flowId).single(),
+        supabase.from('flow_stages').select('*').eq('flow_template_id', flowId).order('order_index', { ascending: true }),
+        supabase.from('form_templates').select('*').order('created_at', { ascending: true }),
+      ])
+      if (flowData) {
+        setFlow({
+          id: flowData.id,
+          name: flowData.name,
+          description: flowData.description ?? '',
+          type: flowData.type,
+          isActive: flowData.is_active,
+          createdBy: flowData.created_by,
+          createdAt: flowData.created_at,
+          updatedAt: flowData.updated_at,
+        })
+        setStages((stagesData ?? []).map((s) => ({
+          id: s.id,
+          flowTemplateId: s.flow_template_id,
+          name: s.name,
+          description: s.description ?? '',
+          orderIndex: s.order_index,
+          popupContent: s.popup_content ?? undefined,
+          dependsOnStageId: s.depends_on_stage_id ?? undefined,
+          formIds: s.form_ids ?? [],
+          createdAt: s.created_at,
+        })))
+      }
+      setForms((formsData ?? []).map((f) => ({
+        id: f.id,
+        name: f.name,
+        description: f.description ?? '',
+        schema: f.schema,
+        createdBy: f.created_by,
+        createdAt: f.created_at,
+        updatedAt: f.updated_at,
+      })))
+      setLoading(false)
+    })()
+  }, [flowId])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -353,6 +385,15 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
     }),
     useSensor(KeyboardSensor)
   )
+
+  // -- Loading --
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="text-muted-foreground">Cargando flujo...</p>
+      </div>
+    )
+  }
 
   // -- Flow not found --
   if (!flow) {

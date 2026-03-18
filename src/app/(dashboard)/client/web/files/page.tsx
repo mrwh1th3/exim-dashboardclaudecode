@@ -9,9 +9,9 @@ export default function ClientWebFilesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Archivos - P\u00e1gina Web</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Archivos - Página Web</h1>
         <p className="text-muted-foreground">
-          Tus archivos de referencia para tu p\u00e1gina web
+          Tus archivos de referencia para tu página web
         </p>
       </div>
       <FileManager section="web" isAdmin={false} clientId={user?.id} />
