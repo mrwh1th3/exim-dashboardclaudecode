@@ -5,7 +5,7 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#161616",
-  "theme_color": "#575ECF",
+  "theme_color": "#a5d2c8",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "es",
@@ -21,7 +21,13 @@
       "src": "/logo-diamond.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-diamond.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
