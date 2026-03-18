@@ -1,4 +1,5 @@
 import { getAdminClient } from '@/lib/supabase/admin'
+import { stripe } from '@/lib/stripe'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -19,13 +20,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Generate a random temporary password
+  // Generate temporary password
   const tempPassword =
     Math.random().toString(36).slice(-6) +
     Math.random().toString(36).toUpperCase().slice(-2) +
     '1!'
 
-  // Create auth user (email already confirmed so they can log in immediately)
+  // Create auth user
   const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
     email,
     password: tempPassword,
@@ -41,7 +42,26 @@ export async function POST(request: NextRequest) {
 
   const userId = authData.user.id
 
-  // Upsert profile (the DB trigger creates a basic one on signup)
+  // Create or find Stripe customer so subscriptions can be linked later
+  let stripeCustomerId: string | null = null
+  try {
+    const existing = await stripe.customers.list({ email, limit: 1 })
+    if (existing.data.length > 0) {
+      stripeCustomerId = existing.data[0].id
+    } else {
+      const customer = await stripe.customers.create({
+        email,
+        name: fullName,
+        ...(companyName && { description: companyName }),
+        metadata: { supabase_user_id: userId },
+      })
+      stripeCustomerId = customer.id
+    }
+  } catch {
+    // Stripe not configured — continue without linking
+  }
+
+  // Upsert profile
   await adminClient.from('profiles').upsert({
     id: userId,
     email,
@@ -50,6 +70,7 @@ export async function POST(request: NextRequest) {
     phone: phone || null,
     role: 'client',
     is_active: true,
+    ...(stripeCustomerId ? { stripe_customer_id: stripeCustomerId } : {}),
   })
 
   // Assign onboarding flow if selected
@@ -85,10 +106,36 @@ export async function POST(request: NextRequest) {
 
   // Assign subscription plan if selected
   if (planId) {
+    // Get stripe_price_id of the selected local plan
+    const { data: plan } = await adminClient
+      .from('subscription_plans')
+      .select('stripe_price_id')
+      .eq('id', planId)
+      .single()
+
+    // Look for an existing Stripe subscription for this customer + price
+    let stripeSubscriptionId: string | null = null
+    if (stripeCustomerId && plan?.stripe_price_id) {
+      try {
+        const subs = await stripe.subscriptions.list({
+          customer: stripeCustomerId,
+          status: 'active',
+          limit: 100,
+        })
+        const match = subs.data.find((s) =>
+          s.items.data.some((item) => item.price.id === plan.stripe_price_id)
+        )
+        if (match) stripeSubscriptionId = match.id
+      } catch {
+        // Stripe not configured
+      }
+    }
+
     await adminClient.from('client_subscriptions').insert({
       client_id: userId,
       plan_id: planId,
       status: 'active',
+      ...(stripeSubscriptionId ? { stripe_subscription_id: stripeSubscriptionId } : {}),
     })
   }
 
