@@ -3,23 +3,32 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth-store';
+import { useRouter } from 'next/navigation';
 import {
 	LayoutDashboard,
 	Settings,
 	Users,
 	ChevronDown,
+	LogOut,
 } from 'lucide-react';
 
 export function RoleSwitcher() {
 	const user = useAuthStore((s) => s.user);
 	const { setRole, logout } = useAuthStore();
 	const [isOpen, setIsOpen] = React.useState(false);
+	const router = useRouter();
 
 	const roles = [
 		{ value: 'admin', label: 'Admin', icon: LayoutDashboard },
 		{ value: 'editor', label: 'Editor', icon: Settings },
 		{ value: 'client', label: 'Cliente', icon: Users },
 	];
+
+	const handleLogout = async () => {
+		setIsOpen(false);
+		await logout();
+		router.replace('/login');
+	};
 
 	return (
 		<div className="relative">
@@ -29,7 +38,7 @@ export function RoleSwitcher() {
 				className="hidden sm:flex gap-2"
 				onClick={() => setIsOpen(!isOpen)}
 			>
-				{roles.find(r => r.value === user?.role)?.icon && 
+				{roles.find(r => r.value === user?.role)?.icon &&
 					React.createElement(roles.find(r => r.value === user?.role)!.icon, { size: 14 })
 				}
 				{user?.fullName || 'Usuario'}
@@ -62,11 +71,9 @@ export function RoleSwitcher() {
 					<div className="border-t p-1">
 						<button
 							className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-accent text-destructive"
-							onClick={() => {
-								logout();
-								setIsOpen(false);
-							}}
+							onClick={handleLogout}
 						>
+							<LogOut size={14} />
 							Cerrar Sesión
 						</button>
 					</div>

@@ -3,19 +3,33 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect } from 'react'
-import { HorizontalHeader } from '@/components/layout/horizontal-header'
+import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
+
+const HorizontalHeader = dynamic(
+  () => import('@/components/layout/horizontal-header').then((m) => m.HorizontalHeader),
+  { ssr: false }
+)
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const loadUser = useAuthStore((s) => s.loadUser)
+  const { loadUser, user, isLoading } = useAuthStore()
+  const router = useRouter()
 
   useEffect(() => {
     loadUser()
   }, [loadUser])
+
+  // Client-side fallback guard: if session expired mid-visit, redirect to login
+  useEffect(() => {
+    if (!isLoading && user === null) {
+      router.replace('/login')
+    }
+  }, [isLoading, user, router])
 
   return (
     <div className="flex min-h-screen flex-col">
