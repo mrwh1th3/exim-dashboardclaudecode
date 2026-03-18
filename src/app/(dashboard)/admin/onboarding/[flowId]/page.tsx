@@ -354,7 +354,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
           createdAt: flowData.created_at,
           updatedAt: flowData.updated_at,
         })
-        setStages((stagesData ?? []).map((s) => ({
+        setStages((stagesData ?? []).map((s: any) => ({
           id: s.id,
           flowTemplateId: s.flow_template_id,
           name: s.name,
@@ -366,7 +366,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
           createdAt: s.created_at,
         })))
       }
-      setForms((formsData ?? []).map((f) => ({
+      setForms((formsData ?? []).map((f: any) => ({
         id: f.id,
         name: f.name,
         description: f.description ?? '',
