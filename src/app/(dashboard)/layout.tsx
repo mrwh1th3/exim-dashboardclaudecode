@@ -3,11 +3,11 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect } from 'react'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 
-const HorizontalHeader = dynamic(
+const HorizontalHeader = nextDynamic(
   () => import('@/components/layout/horizontal-header').then((m) => m.HorizontalHeader),
   { ssr: false }
 )
