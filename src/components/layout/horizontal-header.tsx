@@ -17,6 +17,7 @@ import {
 import { MenuToggleIcon } from '@/components/ui/menu-toggle-icon';
 import { createPortal } from 'react-dom';
 import { RoleSwitcher } from '@/components/layout/role-switcher';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
 	LayoutDashboard,
 	Users,
@@ -117,12 +118,7 @@ export function HorizontalHeader() {
 				<nav className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4">
 					{/* Logo */}
 					<div className="flex items-center gap-2">
-						<Link href={isClient ? '/client' : '/admin'} className="flex items-center gap-2 hover:bg-accent rounded-md p-2">
-							<img 
-								src="/logo-diamond.png" 
-								alt="Exim Logo" 
-								className="h-6 w-6"
-							/>
+						<Link href={isClient ? '/client' : '/admin'} className="flex items-center gap-2 hover:bg-accent rounded-[15px] p-2">
 							<span className="text-lg font-bold font-[family-name:var(--font-display)] tracking-wide">Exim</span>
 						</Link>
 					</div>
@@ -139,7 +135,7 @@ export function HorizontalHeader() {
 												<Link
 													href={item.href}
 													className={cn(
-														"block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+														"block select-none space-y-1 rounded-[15px] p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
 														isActive(item.href) && "bg-accent text-accent-foreground"
 													)}
 												>
@@ -166,7 +162,7 @@ export function HorizontalHeader() {
 												<Link
 													href={item.href}
 													className={cn(
-														"block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+														"block select-none space-y-1 rounded-[15px] p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
 														isActive(item.href) && "bg-accent text-accent-foreground"
 													)}
 												>
@@ -193,7 +189,7 @@ export function HorizontalHeader() {
 												<Link
 													href={item.href}
 													className={cn(
-														"block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+														"block select-none space-y-1 rounded-[15px] p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
 														isActive(item.href) && "bg-accent text-accent-foreground"
 													)}
 												>
@@ -221,7 +217,7 @@ export function HorizontalHeader() {
 													<Link
 														href={item.href}
 														className={cn(
-															"block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+															"block select-none space-y-1 rounded-[15px] p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
 															isActive(item.href) && "bg-accent text-accent-foreground"
 														)}
 													>
@@ -244,6 +240,7 @@ export function HorizontalHeader() {
 
 					{/* User Actions */}
 					<div className="flex items-center gap-2">
+						<ThemeToggle />
 						<RoleSwitcher />
 						<Button
 							size="icon"
@@ -280,7 +277,7 @@ export function HorizontalHeader() {
 											href={item.href}
 											onClick={() => setMobileMenuOpen(false)}
 											className={cn(
-												"flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+												"flex items-center gap-3 rounded-[15px] px-3 py-2 text-sm font-medium transition-colors",
 												isActive(item.href)
 													? "bg-primary text-primary-foreground"
 													: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -310,7 +307,7 @@ export function HorizontalHeader() {
 											href={item.href}
 											onClick={() => setMobileMenuOpen(false)}
 											className={cn(
-												"flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+												"flex items-center gap-3 rounded-[15px] px-3 py-2 text-sm font-medium transition-colors",
 												isActive(item.href)
 													? "bg-primary text-primary-foreground"
 													: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -340,7 +337,7 @@ export function HorizontalHeader() {
 											href={item.href}
 											onClick={() => setMobileMenuOpen(false)}
 											className={cn(
-												"flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+												"flex items-center gap-3 rounded-[15px] px-3 py-2 text-sm font-medium transition-colors",
 												isActive(item.href)
 													? "bg-primary text-primary-foreground"
 													: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"

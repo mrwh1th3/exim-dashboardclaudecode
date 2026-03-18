@@ -37,7 +37,7 @@ export function RoleSwitcher() {
 			</Button>
 
 			{isOpen && (
-				<div className="absolute right-0 top-full mt-1 w-48 rounded-md border bg-popover shadow-md z-50">
+				<div className="absolute right-0 top-full mt-1 w-48 rounded-[15px] border bg-popover shadow-md z-50">
 					<div className="p-2">
 						<p className="text-sm font-medium">{user?.fullName}</p>
 						<p className="text-xs text-muted-foreground">{user?.email}</p>

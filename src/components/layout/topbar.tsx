@@ -79,7 +79,7 @@ export function Topbar() {
       {/* Right side */}
       <div className="flex items-center gap-3">
         {/* Dev role switcher */}
-        <div className="flex items-center gap-1 rounded-lg border px-2 py-1">
+        <div className="flex items-center gap-1 rounded-[15px] border px-2 py-1">
           <span className="text-xs text-muted-foreground mr-1">Rol:</span>
           {(['admin', 'editor', 'client'] as UserRole[]).map((role) => (
             <button

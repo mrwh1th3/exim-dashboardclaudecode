@@ -18,7 +18,17 @@
       "Bash(npm run:*)",
       "WebFetch(domain:www.instagram.com)",
       "WebFetch(domain:www.eximdigital.mx)",
-      "WebFetch(domain:eximdigital.com)"
+      "WebFetch(domain:eximdigital.com)",
+      "Bash(npm cache clean:*)",
+      "Bash(wc:*)",
+      "Bash(npx:*)",
+      "Bash(yarn add:*)",
+      "Bash(pnpm add:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: new auth form + auto-create auth user from profiles\n\n- Replace login page with new animated auth-form component\n- Add social login buttons \\(Twitter, Github, SSO\\)\n- Auto-sync users: if profile exists but not in Supabase Auth, create auth user on login\n- Add btn-sweep hover effect utility class\n- Query profiles by email for reliability\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(ls:*)"
     ]
   }
 }

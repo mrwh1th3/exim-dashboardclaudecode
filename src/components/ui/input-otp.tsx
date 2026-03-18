@@ -72,7 +72,7 @@ function InputOTPSlot({ index, className, ...props }: InputOTPSlotProps) {
       <motion.div
         data-slot="input-otp-slot"
         className={cn(
-          "group relative flex h-10 w-9 items-center justify-center rounded-lg border border-input bg-transparent font-medium text-base text-foreground",
+          "group relative flex h-10 w-9 items-center justify-center rounded-[15px] border border-input bg-transparent font-medium text-base text-foreground",
           "aria-invalid:border-destructive data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-2 data-[active=true]:aria-invalid:ring-destructive",
           className
         )}

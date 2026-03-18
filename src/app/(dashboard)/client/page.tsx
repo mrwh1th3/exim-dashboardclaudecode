@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { BarChart3, FileText, Calendar, ArrowRight, Sparkles } from 'lucide-react'
+import { BarChart3, FileText, Calendar, ArrowRight } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
 import { StatCard } from '@/components/shared/stat-card'
@@ -10,29 +10,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { Meteors } from '@/components/ui/meteors'
-import { Button } from '@/components/ui/button'
 import {
-  MultiStepModal,
-  MultiStepModalContent,
-  MultiStepModalTrigger,
-} from '@/components/ui/multi-step-modal'
+  OnboardingDialog,
+  createPlaceholderImage,
+  type OnboardingSlide,
+} from '@/components/ui/onboarding-dialog'
 
-const ONBOARDING_STEPS = [
+const ONBOARDING_SLIDES: OnboardingSlide[] = [
   {
+    id: 'welcome',
+    alt: 'Bienvenida a Exim',
     title: 'Bienvenido a Exim',
     description: 'Estamos felices de tenerte aquí. En los próximos pasos te explicaremos cómo sacar el máximo provecho de tu dashboard.',
+    image: createPlaceholderImage({ accentColor: '#d86226', endColor: '#FFE8C2', startColor: '#FFF6E8', title: 'Bienvenida' }),
   },
   {
+    id: 'onboarding',
+    alt: 'Completar Onboarding',
     title: 'Completa tu Onboarding',
     description: 'Dirígete a la sección de Onboarding para completar los formularios iniciales. Esto nos ayuda a personalizar nuestros servicios para ti.',
+    image: createPlaceholderImage({ accentColor: '#0A3D30', endColor: '#CAF6E8', startColor: '#E8FFF7', title: 'Onboarding' }),
   },
   {
+    id: 'requests',
+    alt: 'Gestión de Solicitudes',
     title: 'Gestiona tus Solicitudes',
     description: 'Desde "Solicitudes" puedes pedir cambios en tu página web, agregar productos y más. Respondemos en menos de 48 horas.',
+    image: createPlaceholderImage({ accentColor: '#0B1E47', endColor: '#CDE2FF', startColor: '#EAF2FF', title: 'Solicitudes' }),
   },
   {
+    id: 'social',
+    alt: 'Estrategia Social',
     title: 'Revisa tu Estrategia Social',
     description: 'Accede al calendario de contenido para ver los posts programados y la estrategia de redes sociales diseñada para tu marca.',
+    image: createPlaceholderImage({ accentColor: '#2D1457', endColor: '#E1D4FF', startColor: '#F2ECFF', title: 'Redes Sociales' }),
   },
 ]
 
@@ -115,15 +126,10 @@ export default function ClientPortalPage() {
             Resumen de tu cuenta y servicios
           </p>
         </div>
-        <MultiStepModal>
-          <MultiStepModalTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" />
-              Guía de inicio
-            </Button>
-          </MultiStepModalTrigger>
-          <MultiStepModalContent steps={ONBOARDING_STEPS} />
-        </MultiStepModal>
+        <OnboardingDialog
+          defaultOpen={false}
+          slides={ONBOARDING_SLIDES}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

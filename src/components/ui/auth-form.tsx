@@ -58,18 +58,7 @@ const Button: React.FC<ButtonProps> = ({ children, className, isLoading, ...prop
 )
 
 const Logo: React.FC = () => (
-  <div className="mb-6 flex justify-center items-center gap-3">
-    <div
-      className="flex h-10 w-10 items-center justify-center rounded-[15px]"
-      style={{
-        background: '#a5d2c8',
-        fontFamily: 'var(--font-display)',
-        fontSize: '1.4rem',
-        color: 'oklch(0.12 0 0)',
-      }}
-    >
-      E
-    </div>
+  <div className="mb-6 flex justify-center items-center">
     <span
       className="text-foreground"
       style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', letterSpacing: '0.05em' }}

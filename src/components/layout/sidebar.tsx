@@ -131,10 +131,9 @@ export function Sidebar() {
       {/* Logo */}
       <div className={cn('flex h-14 items-center border-b px-4', isCollapsed && 'justify-center px-2')}>
         <Link href={isClient ? '/client' : '/admin'} className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg brand-gradient text-white font-bold text-sm">
-            E
-          </div>
-          {!isCollapsed && <span className="text-lg font-bold font-[family-name:var(--font-display)] tracking-wide">Exim</span>}
+          <span className="text-lg font-bold font-[family-name:var(--font-display)] tracking-wide">
+            {isCollapsed ? 'E' : 'Exim'}
+          </span>
         </Link>
       </div>
 

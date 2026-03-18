@@ -20,14 +20,10 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <HorizontalHeader />
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8" style={{ background: 'oklch(0.14 0 0)' }}>
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-background">
         <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage: 'radial-gradient(oklch(1 0 0 / 3%) 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
-            position: 'fixed',
-          }}
+          className="absolute inset-0 pointer-events-none bg-dot-grid"
+          style={{ position: 'fixed' }}
         />
         <div className="relative z-10 mx-auto max-w-7xl">
           {children}
