@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     adminClient = getAdminClient()
   } catch {
     return NextResponse.json(
-      { error: 'SUPABASE_SERVICE_ROLE_KEY no configurada en el servidor' },
+      { error: 'service_role (SUPABASE_SERVICE_ROLE_KEY) no configurada en el servidor' },
       { status: 500 }
     )
   }

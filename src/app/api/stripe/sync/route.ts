@@ -15,7 +15,7 @@ export async function POST() {
   }
   if (!serviceKey || serviceKey.startsWith('REPLACE_WITH')) {
     return NextResponse.json(
-      { error: 'SUPABASE_SERVICE_ROLE_KEY no está configurada en Vercel. Ve a Settings → Environment Variables y agrega tu service role key de Supabase.' },
+      { error: 'service_role no está configurada en Vercel. Ve a Settings → Environment Variables y agrega tu service role key de Supabase con el nombre "service_role".' },
       { status: 500 },
     )
   }

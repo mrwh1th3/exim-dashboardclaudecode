@@ -8,7 +8,7 @@ export function getAdminClient(): SupabaseClient {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.service_role
     if (!url || !key) {
-      throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set')
+      throw new Error('Falta NEXT_PUBLIC_SUPABASE_URL o service_role (SUPABASE_SERVICE_ROLE_KEY)')
     }
     _adminClient = createClient(url, key, {
       auth: { autoRefreshToken: false, persistSession: false },
