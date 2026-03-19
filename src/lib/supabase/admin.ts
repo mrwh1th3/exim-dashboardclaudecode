@@ -5,7 +5,7 @@ let _adminClient: SupabaseClient | null = null
 
 export function getAdminClient(): SupabaseClient {
   if (!_adminClient) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://izjnvkwgzmrfpaxjmwjb.supabase.co'
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.service_role
     if (!url || !key) {
       throw new Error('Falta NEXT_PUBLIC_SUPABASE_URL o service_role (SUPABASE_SERVICE_ROLE_KEY)')
