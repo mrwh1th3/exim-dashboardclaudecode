@@ -7,6 +7,7 @@ import { Github, Twitter } from "lucide-react"
 import { motion } from "framer-motion"
 import { useAuthStore } from "@/stores/auth-store"
 import { toast } from "sonner"
+import { PWAInstallBanner } from "@/components/pwa-install-banner"
 
 const AuthForm: React.FC = () => {
   return (
@@ -26,6 +27,7 @@ const AuthForm: React.FC = () => {
         <Divider />
         <LoginForm />
         <TermsAndConditions />
+        <PWAInstallBanner />
       </motion.div>
       <BackgroundDecoration />
     </div>

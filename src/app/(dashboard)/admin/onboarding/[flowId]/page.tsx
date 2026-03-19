@@ -331,6 +331,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
   const [stages, setStages] = useState<FlowStage[]>([])
   const [forms, setForms] = useState<FormTemplate[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set())
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewStageIndex, setPreviewStageIndex] = useState(0)
@@ -437,36 +438,91 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
     )
   }
 
-  function deleteStage(stageId: string) {
+  async function deleteStage(stageId: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('flow_stages').delete().eq('id', stageId)
+    if (error) {
+      toast.error('Error al eliminar la etapa')
+      return
+    }
     setStages((prev) => {
       const filtered = prev.filter((s) => s.id !== stageId)
-      // Reindex
-      return filtered.map((s, i) => ({ ...s, orderIndex: i }))
+      return filtered.map((s, i) => ({
+        ...s,
+        orderIndex: i,
+        dependsOnStageId: s.dependsOnStageId === stageId ? undefined : s.dependsOnStageId,
+      }))
     })
-    // Remove dependency references
-    setStages((prev) =>
-      prev.map((s) =>
-        s.dependsOnStageId === stageId
-          ? { ...s, dependsOnStageId: undefined }
-          : s
-      )
-    )
     toast.success('Etapa eliminada')
   }
 
-  function addStage() {
+  async function addStage() {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('flow_stages')
+      .insert({
+        flow_template_id: flowId,
+        name: 'Nueva Etapa',
+        description: '',
+        order_index: stages.length,
+        form_ids: [],
+      })
+      .select()
+      .single()
+    if (error || !data) {
+      toast.error('Error al crear la etapa')
+      return
+    }
     const newStage: FlowStage = {
-      id: `stage-${generateId()}`,
+      id: data.id,
       flowTemplateId: flowId,
-      name: 'Nueva Etapa',
-      description: '',
-      orderIndex: stages.length,
-      formIds: [],
-      createdAt: new Date().toISOString(),
+      name: data.name,
+      description: data.description ?? '',
+      orderIndex: data.order_index,
+      formIds: data.form_ids ?? [],
+      createdAt: data.created_at,
     }
     setStages((prev) => [...prev, newStage])
     setExpandedStages((prev) => new Set(prev).add(newStage.id))
-    toast.success('Etapa agregada')
+    toast.success('Etapa creada')
+  }
+
+  async function handleSave() {
+    if (!flow) return
+    setSaving(true)
+    try {
+      const supabase = createClient()
+      const { error: flowError } = await supabase
+        .from('flow_templates')
+        .update({
+          name: flow.name,
+          description: flow.description || null,
+          is_active: flow.isActive,
+        })
+        .eq('id', flowId)
+      if (flowError) throw flowError
+
+      for (const stage of stages) {
+        const { error: stageError } = await supabase
+          .from('flow_stages')
+          .update({
+            name: stage.name,
+            description: stage.description || null,
+            order_index: stage.orderIndex,
+            popup_content: stage.popupContent ?? null,
+            depends_on_stage_id: stage.dependsOnStageId ?? null,
+            form_ids: stage.formIds,
+          })
+          .eq('id', stage.id)
+        if (stageError) throw stageError
+      }
+
+      toast.success('Cambios guardados')
+    } catch {
+      toast.error('Error al guardar los cambios')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -570,6 +626,9 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
           >
             <Eye className="mr-2 h-4 w-4" />
             Preview
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
           </Button>
         </div>
       </div>
