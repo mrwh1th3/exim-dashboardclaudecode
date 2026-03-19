@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Request, RequestStatus, RequestAttachment } from '@/types/requests'
+
+// Extended type for admin requests page
+interface RequestWithStatus extends Request {
+  status: RequestStatus
+}
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -16,12 +21,12 @@ import { FileText, Download, Eye, Edit, Save, X, ChevronDown } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 export default function AdminRequestsPage() {
-  const [requests, setRequests] = useState<Request[]>([])
+  const [requests, setRequests] = useState<RequestWithStatus[]>([])
   const [statuses, setStatuses] = useState<RequestStatus[]>([])
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
-  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
+  const [selectedRequest, setSelectedRequest] = useState<RequestWithStatus | null>(null)
   const [attachments, setAttachments] = useState<RequestAttachment[]>([])
   const [loadingAttachments, setLoadingAttachments] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -47,7 +52,7 @@ export default function AdminRequestsPage() {
         }))
       )
       setRequests(
-        (reqs ?? []).map((r: any) => ({
+        (reqs ?? []).map((r: any): RequestWithStatus => ({
           id: r.id,
           clientId: r.client_id,
           clientName: (r.profiles as { full_name: string } | null)?.full_name ?? '',
