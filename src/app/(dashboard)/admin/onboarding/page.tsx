@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
-import { Plus, Trash2, FileText, Layers, Users, Globe, Share2 } from 'lucide-react'
+import { Plus, Trash2, FileText, Layers, Users, Globe, Share2, Inbox, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import type { FlowTemplate, FlowStage, FormTemplate, FormField, FieldType, ClientFlow, FlowType, FlowStatus } from '@/types/onboarding'
 
@@ -34,6 +34,16 @@ function generateId() { return Math.random().toString(36).substring(2, 12) }
 
 interface ClientOption { id: string; fullName: string; companyName?: string; isActive: boolean }
 
+interface SubmissionRow {
+  id: string
+  clientId: string
+  clientFlowId: string
+  formTemplateId: string
+  stageId: string
+  data: Record<string, unknown>
+  submittedAt: string | null
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const { user } = useAuthStore()
@@ -42,6 +52,9 @@ export default function OnboardingPage() {
   const [forms, setForms] = useState<FormTemplate[]>([])
   const [clientFlows, setClientFlows] = useState<ClientFlow[]>([])
   const [clients, setClients] = useState<ClientOption[]>([])
+  const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
+  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionRow | null>(null)
+  const [submissionSheetOpen, setSubmissionSheetOpen] = useState(false)
 
   const [flowDialogOpen, setFlowDialogOpen] = useState(false)
   const [deleteFlowDialogOpen, setDeleteFlowDialogOpen] = useState(false)
@@ -64,18 +77,20 @@ export default function OnboardingPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const [{ data: flowsData }, { data: stagesData }, { data: formsData }, { data: cfData }, { data: clientsData }] = await Promise.all([
+      const [{ data: flowsData }, { data: stagesData }, { data: formsData }, { data: cfData }, { data: clientsData }, { data: subsData }] = await Promise.all([
         supabase.from('flow_templates').select('*').order('created_at', { ascending: false }),
         supabase.from('flow_stages').select('*').order('order_index'),
         supabase.from('form_templates').select('*').order('created_at', { ascending: false }),
         supabase.from('client_flows').select('*').order('created_at', { ascending: false }),
         supabase.from('profiles').select('id, full_name, company_name, is_active').eq('role', 'client').order('full_name'),
+        supabase.from('form_submissions').select('*').order('submitted_at', { ascending: false }),
       ])
       setClients((clientsData ?? []).map((c: any) => ({ id: c.id, fullName: c.full_name ?? '', companyName: c.company_name ?? undefined, isActive: c.is_active })))
       setFlows((flowsData ?? []).map((f: any) => ({ id: f.id, name: f.name, description: f.description ?? undefined, type: f.type as FlowType, isActive: f.is_active, createdBy: '', createdAt: f.created_at, updatedAt: f.updated_at })))
       setStages((stagesData ?? []).map((s: any) => ({ id: s.id, flowTemplateId: s.flow_template_id, name: s.name, description: s.description ?? undefined, orderIndex: s.order_index, formIds: s.form_ids ?? [], createdAt: s.created_at })))
       setForms((formsData ?? []).map((f: any) => ({ id: f.id, name: f.name, description: f.description ?? undefined, schema: f.schema ?? { fields: [] }, createdBy: '', createdAt: f.created_at, updatedAt: f.updated_at })))
       setClientFlows((cfData ?? []).map((cf: any) => ({ id: cf.id, clientId: cf.client_id, flowTemplateId: cf.flow_template_id, status: cf.status as FlowStatus, assignedBy: cf.assigned_by ?? '', startedAt: cf.started_at ?? undefined, completedAt: cf.completed_at ?? undefined, createdAt: cf.created_at })))
+      setSubmissions((subsData ?? []).map((s: any) => ({ id: s.id, clientId: s.client_id, clientFlowId: s.client_flow_id, formTemplateId: s.form_template_id, stageId: s.stage_id, data: s.data ?? {}, submittedAt: s.submitted_at })))
     }
     load()
   }, [])
@@ -180,6 +195,7 @@ export default function OnboardingPage() {
           <TabsTrigger value="flujos"><Layers className="mr-1.5 h-4 w-4" />Flujos</TabsTrigger>
           <TabsTrigger value="formularios"><FileText className="mr-1.5 h-4 w-4" />Formularios</TabsTrigger>
           <TabsTrigger value="asignaciones"><Users className="mr-1.5 h-4 w-4" />Asignaciones</TabsTrigger>
+          <TabsTrigger value="respuestas"><Inbox className="mr-1.5 h-4 w-4" />Respuestas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="flujos">
@@ -279,7 +295,101 @@ export default function OnboardingPage() {
             </Card>
           </div>
         </TabsContent>
+        <TabsContent value="respuestas">
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Formulario</TableHead>
+                    <TableHead>Etapa</TableHead>
+                    <TableHead>Enviado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {submissions.map((sub) => {
+                    const form = forms.find((f) => f.id === sub.formTemplateId)
+                    const stage = stages.find((s) => s.id === sub.stageId)
+                    const client = clients.find((c) => c.id === sub.clientId)
+                    return (
+                      <TableRow key={sub.id}>
+                        <TableCell className="font-medium">{client?.fullName ?? 'Desconocido'}</TableCell>
+                        <TableCell>{form?.name ?? 'Desconocido'}</TableCell>
+                        <TableCell>{stage?.name ?? 'Desconocido'}</TableCell>
+                        <TableCell>{sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString('es-MX') : '-'}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setSelectedSubmission(sub); setSubmissionSheetOpen(true) }}
+                          >
+                            <Eye className="mr-1.5 h-3.5 w-3.5" />
+                            Ver respuestas
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {submissions.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
+                        No hay respuestas de formularios aún.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Sheet: Ver respuestas de formulario */}
+      <Sheet open={submissionSheetOpen} onOpenChange={setSubmissionSheetOpen}>
+        <SheetContent className="sm:max-w-lg overflow-y-auto">
+          {selectedSubmission && (() => {
+            const form = forms.find((f) => f.id === selectedSubmission.formTemplateId)
+            const client = clients.find((c) => c.id === selectedSubmission.clientId)
+            const stage = stages.find((s) => s.id === selectedSubmission.stageId)
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle>{form?.name ?? 'Formulario'}</SheetTitle>
+                  <SheetDescription>
+                    {client?.fullName ?? 'Cliente'} · Etapa: {stage?.name ?? '-'} ·{' '}
+                    {selectedSubmission.submittedAt
+                      ? new Date(selectedSubmission.submittedAt).toLocaleDateString('es-MX')
+                      : ''}
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="mt-6 space-y-4">
+                  {form?.schema.fields
+                    .sort((a, b) => a.order - b.order)
+                    .map((field) => {
+                      const value = selectedSubmission.data[field.id]
+                      const displayValue = Array.isArray(value)
+                        ? (value as string[]).join(', ')
+                        : value !== undefined && value !== null && value !== ''
+                        ? String(value)
+                        : '—'
+                      return (
+                        <div key={field.id} className="space-y-1 rounded-lg border p-3">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{field.label}</p>
+                          <p className="text-sm">{displayValue}</p>
+                        </div>
+                      )
+                    })}
+                  {(!form?.schema.fields || form.schema.fields.length === 0) && (
+                    <p className="text-sm text-muted-foreground">No hay campos en este formulario.</p>
+                  )}
+                </div>
+              </>
+            )
+          })()}
+        </SheetContent>
+      </Sheet>
 
       {/* Dialog: Nuevo Flujo */}
       <Dialog open={flowDialogOpen} onOpenChange={setFlowDialogOpen}>

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useFlowsStore } from '@/stores/flows-store'
-import { FlowStage, ClientStageProgress, FormTemplate, FormField } from '@/types/onboarding'
+import { FlowStage, ClientStageProgress, FormTemplate, FormField, FormSubmission } from '@/types/onboarding'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,8 +26,6 @@ export default function ClientOnboardingPage() {
     flowStages,
     clientStageProgress: allProgress,
     formTemplates,
-    formSubmissions,
-    saveFormSubmission,
     updateStageProgress,
     updateClientFlowStatus,
   } = useFlowsStore()
@@ -36,6 +35,35 @@ export default function ClientOnboardingPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedForm, setSelectedForm] = useState<FormTemplate | null>(null)
   const [formData, setFormData] = useState<Record<string, unknown>>({})
+  const [submissions, setSubmissions] = useState<FormSubmission[]>([])
+
+  // Load form submissions from Supabase on mount
+  useEffect(() => {
+    async function loadSubmissions() {
+      if (!user?.id) return
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('form_submissions')
+        .select('*')
+        .eq('client_id', user.id)
+      if (data) {
+        setSubmissions(
+          data.map((s: any) => ({
+            id: s.id,
+            clientFlowId: s.client_flow_id,
+            formTemplateId: s.form_template_id,
+            stageId: s.stage_id,
+            data: s.data ?? {},
+            status: 'submitted' as const,
+            submittedAt: s.submitted_at,
+            createdAt: s.submitted_at,
+            updatedAt: s.submitted_at,
+          }))
+        )
+      }
+    }
+    loadSubmissions()
+  }, [user?.id])
 
   const clientFlow = useMemo(() => {
     return clientFlows.find((f) => f.clientId === user?.id)
@@ -65,7 +93,6 @@ export default function ClientOnboardingPage() {
   const getStageStatus = (stage: FlowStage) => {
     const progress = stageProgress.get(stage.id)
     if (progress) return progress.status
-    // If no progress record, determine based on dependencies
     if (!stage.dependsOnStageId) return 'available'
     const depProgress = stageProgress.get(stage.dependsOnStageId)
     if (depProgress?.status === 'completed') return 'available'
@@ -82,8 +109,7 @@ export default function ClientOnboardingPage() {
   const handleOpenForm = (formId: string) => {
     const form = formTemplates.find((f) => f.id === formId)
     if (form && clientFlow && selectedStage) {
-      // Pre-fill with existing submission data if available
-      const existing = formSubmissions.find(
+      const existing = submissions.find(
         (s) => s.clientFlowId === clientFlow.id && s.formTemplateId === formId && s.stageId === selectedStage.id
       )
       setFormData(existing?.data ?? {})
@@ -93,25 +119,60 @@ export default function ClientOnboardingPage() {
     }
   }
 
-  const handleSubmitForm = () => {
-    if (!clientFlow || !selectedStage || !selectedForm) return
-    saveFormSubmission({
-      id: `sub-${Date.now()}`,
+  const handleSubmitForm = async () => {
+    if (!clientFlow || !selectedStage || !selectedForm || !user?.id) return
+
+    const supabase = createClient()
+    const existing = submissions.find(
+      (s) =>
+        s.clientFlowId === clientFlow.id &&
+        s.formTemplateId === selectedForm.id &&
+        s.stageId === selectedStage.id
+    )
+
+    let savedId = existing?.id
+    if (existing) {
+      await supabase
+        .from('form_submissions')
+        .update({ data: formData })
+        .eq('id', existing.id)
+    } else {
+      const { data: inserted } = await supabase
+        .from('form_submissions')
+        .insert({
+          client_flow_id: clientFlow.id,
+          form_template_id: selectedForm.id,
+          stage_id: selectedStage.id,
+          client_id: user.id,
+          data: formData,
+        })
+        .select()
+        .single()
+      savedId = inserted?.id ?? `sub-${Date.now()}`
+    }
+
+    const now = new Date().toISOString()
+    const updatedSub: FormSubmission = {
+      id: savedId ?? `sub-${Date.now()}`,
       clientFlowId: clientFlow.id,
       formTemplateId: selectedForm.id,
       stageId: selectedStage.id,
       data: formData,
       status: 'submitted',
-      submittedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })
-    // Mark stage as in_progress if not already completed
+      submittedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    }
+    if (existing) {
+      setSubmissions((prev) => prev.map((s) => (s.id === existing.id ? updatedSub : s)))
+    } else {
+      setSubmissions((prev) => [...prev, updatedSub])
+    }
+
     const currentStatus = stageProgress.get(selectedStage.id)?.status
     if (currentStatus !== 'completed') {
       updateStageProgress(clientFlow.id, selectedStage.id, 'in_progress')
     }
-    // Mark flow as in_progress if not started
     if (clientFlow.status === 'not_started') {
       updateClientFlowStatus(clientFlow.id, 'in_progress')
     }
@@ -319,9 +380,14 @@ export default function ClientOnboardingPage() {
                     {selectedStage.formIds.map((formId) => {
                       const form = formTemplates.find((f) => f.id === formId)
                       if (!form) return null
-                      const submission = clientFlow ? formSubmissions.find(
-                        (s) => s.clientFlowId === clientFlow.id && s.formTemplateId === formId && s.stageId === selectedStage.id
-                      ) : null
+                      const submission = clientFlow
+                        ? submissions.find(
+                            (s) =>
+                              s.clientFlowId === clientFlow.id &&
+                              s.formTemplateId === formId &&
+                              s.stageId === selectedStage.id
+                          )
+                        : null
                       return (
                         <div
                           key={formId}
@@ -339,8 +405,12 @@ export default function ClientOnboardingPage() {
                               )}
                             </div>
                           </div>
-                          <Button size="sm" variant={submission ? 'outline' : 'default'} onClick={() => handleOpenForm(formId)}>
-                            {submission ? 'Editar' : 'Completar'}
+                          <Button
+                            size="sm"
+                            variant={submission ? 'outline' : 'default'}
+                            onClick={() => handleOpenForm(formId)}
+                          >
+                            {submission ? 'Ver / Editar' : 'Completar'}
                           </Button>
                         </div>
                       )
