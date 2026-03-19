@@ -11,6 +11,7 @@ import {
 	ChevronDown,
 	LogOut,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function RoleSwitcher() {
 	const user = useAuthStore((s) => s.user);
@@ -46,31 +47,37 @@ export function RoleSwitcher() {
 			</Button>
 
 			{isOpen && (
-				<div className="absolute right-0 top-full mt-1 w-48 rounded-[15px] border bg-popover shadow-md z-50">
-					<div className="p-2">
-						<p className="text-sm font-medium">{user?.fullName}</p>
-						<p className="text-xs text-muted-foreground">{user?.email}</p>
+				<div className="absolute right-0 top-full mt-2 w-52 rounded-[15px] border bg-popover shadow-lg z-50 overflow-hidden">
+					{/* User info */}
+					<div className="px-3 py-3 border-b">
+						<p className="text-sm font-medium leading-snug">{user?.fullName}</p>
+						<p className="text-xs text-muted-foreground mt-0.5">{user?.email}</p>
 					</div>
-					<div className="border-t p-1">
+
+					{/* Role items */}
+					<div className="p-1.5 space-y-0.5">
 						{roles.map((role) => (
 							<button
 								key={role.value}
-								className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-accent ${
-									user?.role === role.value ? 'bg-accent' : ''
-								}`}
+								className={cn(
+									'w-full flex items-center gap-2.5 px-2.5 py-2 text-sm rounded-[10px] transition-colors hover:bg-accent',
+									user?.role === role.value && 'bg-accent'
+								)}
 								onClick={() => {
 									setRole(role.value as any);
 									setIsOpen(false);
 								}}
 							>
-								<role.icon size={14} />
+								<role.icon size={14} className="text-muted-foreground" />
 								{role.label}
 							</button>
 						))}
 					</div>
-					<div className="border-t p-1">
+
+					{/* Logout */}
+					<div className="p-1.5 border-t">
 						<button
-							className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-accent text-destructive"
+							className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm rounded-[10px] transition-colors hover:bg-accent text-destructive"
 							onClick={handleLogout}
 						>
 							<LogOut size={14} />

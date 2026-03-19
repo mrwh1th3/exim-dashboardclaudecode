@@ -122,8 +122,8 @@ function SortableStageCard({
   return (
     <div ref={setNodeRef} style={style}>
       <Card className={isDragging ? 'ring-2 ring-primary' : ''}>
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
             <button
               {...attributes}
               {...listeners}
@@ -169,7 +169,7 @@ function SortableStageCard({
         </CardHeader>
 
         {isExpanded && (
-          <CardContent className="space-y-4 pt-2">
+          <CardContent className="space-y-5">
             {/* Description */}
             <div className="space-y-2">
               <Label>Descripción</Label>
@@ -604,7 +604,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
           />
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Label className="text-sm">Activo</Label>
             <Switch
               checked={flow.isActive}
@@ -652,7 +652,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
             items={stages.map((s) => s.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1">
+            <div className="space-y-3">
               {stages
                 .sort((a, b) => a.orderIndex - b.orderIndex)
                 .map((stage, idx) => (
@@ -667,7 +667,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
                       allForms={forms}
                     />
                     {idx < stages.length - 1 && (
-                      <div className="flex justify-center py-1">
+                      <div className="flex justify-center py-2">
                         <ArrowDown className="h-4 w-4 text-muted-foreground/50" />
                       </div>
                     )}
@@ -722,7 +722,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
                 {/* Popup section */}
                 {currentPreviewStage.popupContent && (
                   <Card className="border-primary/20 bg-primary/5">
-                    <CardHeader className="pb-2">
+                    <CardHeader className="pb-3">
                       <CardTitle className="text-base">
                         {currentPreviewStage.popupContent.title}
                       </CardTitle>
@@ -760,7 +760,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
                     if (!form) return null
                     return (
                       <Card key={formId}>
-                        <CardHeader className="pb-2">
+                        <CardHeader className="pb-3">
                           <CardTitle className="text-sm">
                             {form.name}
                           </CardTitle>
@@ -834,7 +834,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
                                   </div>
                                 )}
                                 {field.type === 'color_picker' && (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-3">
                                     <div className="h-8 w-8 rounded border bg-muted" />
                                     <span className="text-sm text-muted-foreground">
                                       Seleccionar color

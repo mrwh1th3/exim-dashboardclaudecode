@@ -239,7 +239,7 @@ export function HorizontalHeader() {
 					</NavigationMenu>
 
 					{/* Acciones — esquina derecha */}
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-3">
 						<RoleSwitcher />
 						<ThemeToggle />
 						<Button

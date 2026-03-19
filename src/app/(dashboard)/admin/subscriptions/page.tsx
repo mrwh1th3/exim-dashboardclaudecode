@@ -353,7 +353,7 @@ export default function SubscriptionsPage() {
             </Card>
           ) : (
             <Card>
-              <CardContent className="p-0">
+              <CardContent className="px-0 pt-0 pb-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -379,10 +379,10 @@ export default function SubscriptionsPage() {
                               variant={sub.status === 'active' ? 'default' : 'destructive'}
                               className={
                                 sub.status === 'active'
-                                  ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                                  ? 'bg-green-500/15 text-green-400 border-green-500/30 hover:bg-green-500/20'
                                   : sub.status === 'cancelled'
-                                  ? 'bg-red-100 text-red-800 hover:bg-red-100'
-                                  : ''
+                                  ? 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                  : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                               }
                             >
                               {sub.status === 'active'

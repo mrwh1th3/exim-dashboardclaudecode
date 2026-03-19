@@ -79,7 +79,7 @@ export default function ClientsListPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b">
           <div className="flex items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -119,9 +119,9 @@ export default function ClientsListPage() {
                   </TableCell>
                   <TableCell>
                     {client.isActive ? (
-                      <Badge variant="outline" className="border-green-500 text-green-600">Activo</Badge>
+                      <Badge variant="outline" className="border-green-500/40 bg-green-500/10 text-green-400">Activo</Badge>
                     ) : (
-                      <Badge variant="outline" className="border-red-500 text-red-600">Inactivo</Badge>
+                      <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-400">Inactivo</Badge>
                     )}
                   </TableCell>
                   <TableCell>
