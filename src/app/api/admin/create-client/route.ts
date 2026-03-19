@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
-  const { fullName, email, companyName, phone, flowTemplateId, planId } = await request.json()
+  const { fullName, email, companyName, phone, flowTemplateId, planId, stripeCustomerId: explicitStripeCustomerId } = await request.json()
 
   if (!fullName || !email) {
     return NextResponse.json({ error: 'fullName y email son requeridos' }, { status: 400 })
@@ -43,22 +43,24 @@ export async function POST(request: NextRequest) {
   const userId = authData.user.id
 
   // Create or find Stripe customer so subscriptions can be linked later
-  let stripeCustomerId: string | null = null
-  try {
-    const existing = await stripe.customers.list({ email, limit: 1 })
-    if (existing.data.length > 0) {
-      stripeCustomerId = existing.data[0].id
-    } else {
-      const customer = await stripe.customers.create({
-        email,
-        name: fullName,
-        ...(companyName && { description: companyName }),
-        metadata: { supabase_user_id: userId },
-      })
-      stripeCustomerId = customer.id
+  let stripeCustomerId: string | null = explicitStripeCustomerId ?? null
+  if (!stripeCustomerId) {
+    try {
+      const existing = await stripe.customers.list({ email, limit: 1 })
+      if (existing.data.length > 0) {
+        stripeCustomerId = existing.data[0].id
+      } else {
+        const customer = await stripe.customers.create({
+          email,
+          name: fullName,
+          ...(companyName && { description: companyName }),
+          metadata: { supabase_user_id: userId },
+        })
+        stripeCustomerId = customer.id
+      }
+    } catch {
+      // Stripe not configured — continue without linking
     }
-  } catch {
-    // Stripe not configured — continue without linking
   }
 
   // Upsert profile
