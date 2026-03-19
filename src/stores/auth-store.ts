@@ -1,19 +1,17 @@
 'use client'
 
 import { create } from 'zustand'
-import { Profile, UserRole } from '@/types/auth'
+import { Profile } from '@/types/auth'
 import { createClient } from '@/lib/supabase/client'
 
 interface AuthStore {
   user: Profile | null
   isLoading: boolean
   setUser: (user: Profile | null) => void
-  setRole: (role: UserRole) => void
   updateProfile: (updates: Partial<Profile>) => void
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   loadUser: () => Promise<void>
-  switchToClient: (clientId: string) => void
 }
 
 export const useAuthStore = create<AuthStore>()((set) => ({
@@ -41,10 +39,6 @@ export const useAuthStore = create<AuthStore>()((set) => ({
       user: state.user ? { ...state.user, ...updates, updatedAt: new Date().toISOString() } : null,
     }))
   },
-
-  setRole: (role) => set((state) => ({
-    user: state.user ? { ...state.user, role } : null,
-  })),
 
   login: async (email: string, password: string) => {
     set({ isLoading: true })
@@ -90,10 +84,6 @@ export const useAuthStore = create<AuthStore>()((set) => ({
   logout: async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    // Clear impersonation
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('exim-impersonate')
-    }
     set({ user: null })
   },
 
@@ -132,13 +122,5 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     } else {
       set({ isLoading: false })
     }
-  },
-
-  switchToClient: (clientId: string) => {
-    // Admin impersonation: store target clientId in sessionStorage
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('exim-impersonate', clientId)
-    }
-    // The actual client data will be fetched by the page using the stored clientId
   },
 }))

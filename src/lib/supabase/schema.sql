@@ -300,6 +300,12 @@ create policy "admins_editors_read_all_files" on public.files
   );
 create policy "clients_read_own_files" on public.files
   for select using (client_id = auth.uid());
+create policy "clients_insert_own_files" on public.files
+  for insert with check (client_id = auth.uid());
+create policy "clients_update_own_files" on public.files
+  for update using (client_id = auth.uid()) with check (client_id = auth.uid());
+create policy "clients_delete_own_files" on public.files
+  for delete using (client_id = auth.uid());
 create policy "admins_editors_write_files" on public.files
   for all using (
     exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','editor'))
@@ -610,8 +616,76 @@ create policy "clients_insert_submissions" on public.form_submissions
 --
 -- supabase storage create social-files --public false
 -- supabase storage create web-files --public false
---
--- Then add storage policies:
--- Admins/editors: full access to all paths
--- Clients: access only to {client_id}/* paths
 -- ============================================================
+
+-- ============================================================
+-- STORAGE POLICIES (Run in SQL Editor after creating buckets)
+-- ============================================================
+
+-- Social Files Bucket Policies
+-- Admins/editors: full access
+insert into storage.policies (name, bucket_id, operation, definition)
+select 'admins_editors_all_social_files', 'social-files', op,
+  'exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in (''admin'',''editor''))'
+from unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE']) as op
+where not exists (select 1 from storage.buckets where id = 'social-files');
+
+-- Clients: access only to their own folder ({client_id}/*)
+-- SELECT (read/download)
+create policy "clients_select_own_social_files" on storage.objects
+  for select using (
+    bucket_id = 'social-files'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+-- INSERT (upload)
+create policy "clients_insert_own_social_files" on storage.objects
+  for insert with check (
+    bucket_id = 'social-files'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+-- UPDATE
+create policy "clients_update_own_social_files" on storage.objects
+  for update using (
+    bucket_id = 'social-files'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+-- DELETE
+create policy "clients_delete_own_social_files" on storage.objects
+  for delete using (
+    bucket_id = 'social-files'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Web Files Bucket Policies (same pattern)
+create policy "clients_select_own_web_files" on storage.objects
+  for select using (
+    bucket_id = 'web-files'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+create policy "clients_insert_own_web_files" on storage.objects
+  for insert with check (
+    bucket_id = 'web-files'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+create policy "clients_update_own_web_files" on storage.objects
+  for update using (
+    bucket_id = 'web-files'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+create policy "clients_delete_own_web_files" on storage.objects
+  for delete using (
+    bucket_id = 'web-files'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Admins/editors full access to both buckets
+create policy "admins_editors_all_social_files" on storage.objects
+  for all using (
+    bucket_id = 'social-files'
+    and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','editor'))
+  );
+create policy "admins_editors_all_web_files" on storage.objects
+  for all using (
+    bucket_id = 'web-files'
+    and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','editor'))
+  );
