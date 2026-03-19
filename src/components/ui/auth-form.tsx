@@ -11,14 +11,14 @@ import { PWAInstallBanner } from "@/components/pwa-install-banner"
 const AuthForm: React.FC = () => {
   return (
     <div
-      className="min-h-screen py-20 selection:bg-[#a5d2c8]/30"
+      className="min-h-screen py-20 selection:bg-[#a5d2c8]/30 flex items-center justify-center"
       style={{ background: 'oklch(0.12 0 0)' }}
     >
       <motion.div
         initial={{ opacity: 0, y: 25 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1.25, ease: "easeInOut" }}
-        className="relative z-10 mx-auto w-full max-w-xl p-4"
+        className="relative z-10 w-full max-w-xl p-4"
       >
         <Header />
         <Divider />

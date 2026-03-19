@@ -125,6 +125,7 @@ export interface FormSubmission {
   status: SubmissionStatus
   submittedAt?: string
   reviewedBy?: string
+  reviewedAt?: string
   createdAt: string
   updatedAt: string
 }

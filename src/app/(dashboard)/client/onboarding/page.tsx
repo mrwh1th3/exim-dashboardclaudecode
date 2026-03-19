@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Check, Lock, Circle, AlertCircle, FileText } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
@@ -37,6 +38,92 @@ export default function ClientOnboardingPage() {
   const [formData, setFormData] = useState<Record<string, unknown>>({})
   const [submissions, setSubmissions] = useState<FormSubmission[]>([])
 
+  // Load data from Supabase on mount
+  useEffect(() => {
+    async function loadData() {
+      if (!user?.id) return
+      const supabase = createClient()
+      
+      // Load client flow
+      const { data: clientFlowData } = await supabase
+        .from('client_flows')
+        .select('*')
+        .eq('client_id', user.id)
+        .maybeSingle()
+      
+      if (clientFlowData) {
+        // Load flow template
+        const { data: flowTemplateData } = await supabase
+          .from('flow_templates')
+          .select('*')
+          .eq('id', clientFlowData.flow_template_id)
+          .single()
+        
+        if (flowTemplateData) {
+          // Load stages
+          const { data: stagesData } = await supabase
+            .from('flow_stages')
+            .select('*')
+            .eq('flow_template_id', flowTemplateData.id)
+            .order('order_index')
+          
+          // Load stage progress
+          const { data: progressData } = await supabase
+            .from('client_stage_progress')
+            .select('*')
+            .eq('client_flow_id', clientFlowData.id)
+          
+          // Load form templates
+          const { data: formData } = await supabase
+            .from('form_templates')
+            .select('*')
+            .order('created_at', { ascending: false })
+          
+          // Update store with fresh data
+          const { updateClientFlowStatus, updateStageProgress } = useFlowsStore.getState()
+          
+          // Update client flows
+          useFlowsStore.setState({
+            clientFlows: [{
+              id: clientFlowData.id,
+              clientId: clientFlowData.client_id,
+              flowTemplateId: clientFlowData.flow_template_id,
+              status: clientFlowData.status as any,
+              assignedBy: clientFlowData.assigned_by ?? '',
+              createdAt: clientFlowData.created_at
+            }]
+          })
+          
+          // Update flow templates
+          useFlowsStore.setState({
+            flowTemplates: [flowTemplateData]
+          })
+          
+          // Update stages
+          useFlowsStore.setState({
+            flowStages: stagesData || []
+          })
+          
+          // Update stage progress
+          if (progressData) {
+            progressData.forEach((progress: any) => {
+              updateStageProgress(clientFlowData.id, progress.stage_id, progress.status as any)
+            })
+          }
+          
+          // Update form templates
+          if (formData) {
+            useFlowsStore.setState({
+              formTemplates: formData
+            })
+          }
+        }
+      }
+    }
+    
+    loadData()
+  }, [user?.id])
+
   // Load form submissions from Supabase on mount
   useEffect(() => {
     async function loadSubmissions() {
@@ -44,8 +131,9 @@ export default function ClientOnboardingPage() {
       const supabase = createClient()
       const { data } = await supabase
         .from('form_submissions')
-        .select('*')
+        .select('*, reviewed_by, reviewed_at')
         .eq('client_id', user.id)
+        .order('submitted_at', { ascending: false })
       if (data) {
         setSubmissions(
           data.map((s: any) => ({
@@ -54,8 +142,9 @@ export default function ClientOnboardingPage() {
             formTemplateId: s.form_template_id,
             stageId: s.stage_id,
             data: s.data ?? {},
-            status: 'submitted' as const,
+            status: s.reviewed_by ? 'reviewed' : 'submitted',
             submittedAt: s.submitted_at,
+            reviewedBy: s.reviewed_by,
             createdAt: s.submitted_at,
             updatedAt: s.submitted_at,
           }))
@@ -106,14 +195,19 @@ export default function ClientOnboardingPage() {
     setDialogOpen(true)
   }
 
-  const handleOpenForm = (formId: string) => {
+  const handleOpenForm = (formId: string, stageId?: string) => {
     const form = formTemplates.find((f) => f.id === formId)
-    if (form && clientFlow && selectedStage) {
+    const targetStageId = stageId || selectedStage?.id
+    
+    if (form && clientFlow && targetStageId) {
       const existing = submissions.find(
-        (s) => s.clientFlowId === clientFlow.id && s.formTemplateId === formId && s.stageId === selectedStage.id
+        (s) => s.clientFlowId === clientFlow.id && s.formTemplateId === formId && s.stageId === targetStageId
       )
       setFormData(existing?.data ?? {})
       setSelectedForm(form)
+      if (stageId) {
+        setSelectedStage(flowStages.find((s) => s.id === stageId) || null)
+      }
       setDialogOpen(false)
       setSheetOpen(true)
     }
@@ -360,6 +454,60 @@ export default function ClientOnboardingPage() {
         </CardContent>
       </Card>
 
+      {/* Recent Submissions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Historial de Envíos</CardTitle>
+          <CardDescription>Revisa el estado de todos tus formularios enviados</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {submissions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No has enviado ningún formulario aún.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {submissions.map((submission) => {
+                const form = formTemplates.find((f) => f.id === submission.formTemplateId)
+                const stage = flowStages.find((s) => s.id === submission.stageId)
+                const isReviewed = submission.status === 'reviewed'
+                
+                return (
+                  <div key={submission.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className={`h-5 w-5 ${isReviewed ? 'text-blue-500' : 'text-green-500'}`} />
+                      <div>
+                        <p className="text-sm font-medium">{form?.name || 'Formulario'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {stage?.name || 'Etapa'} • Enviado: {new Date(submission.submittedAt!).toLocaleDateString('es-MX')}
+                        </p>
+                        {isReviewed && submission.reviewedAt && (
+                          <p className="text-xs text-blue-600">
+                            Revisado: {new Date(submission.reviewedAt).toLocaleDateString('es-MX')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={isReviewed ? "default" : "secondary"} className={isReviewed ? "bg-blue-100 text-blue-700" : ""}>
+                        {isReviewed ? 'Revisado' : 'Pendiente'}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenForm(submission.formTemplateId, submission.stageId)}
+                      >
+                        Ver
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Stage Detail Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -388,20 +536,23 @@ export default function ClientOnboardingPage() {
                               s.stageId === selectedStage.id
                           )
                         : null
+                      const isReviewed = submission?.status === 'reviewed'
                       return (
                         <div
                           key={formId}
                           className="flex items-center justify-between rounded-lg border p-3"
                         >
                           <div className="flex items-center gap-3">
-                            <FileText className={`h-5 w-5 ${submission ? 'text-green-500' : 'text-muted-foreground'}`} />
+                            <FileText className={`h-5 w-5 ${submission ? (isReviewed ? 'text-blue-500' : 'text-green-500') : 'text-muted-foreground'}`} />
                             <div>
                               <p className="text-sm font-medium">{form.name}</p>
                               {form.description && (
                                 <p className="text-xs text-muted-foreground">{form.description}</p>
                               )}
                               {submission && (
-                                <p className="text-xs text-green-600">Enviado</p>
+                                <p className={`text-xs ${isReviewed ? 'text-blue-600' : 'text-green-600'}`}>
+                                  {isReviewed ? 'Revisado' : 'Enviado'} {submission.reviewedAt && `- ${new Date(submission.reviewedAt).toLocaleDateString('es-MX')}`}
+                                </p>
                               )}
                             </div>
                           </div>

@@ -109,7 +109,7 @@ export default function AdminRequestsPage() {
     setLoadingAttachments(false)
   }
 
-  const handleRowClick = async (request: Request) => {
+  const handleRowClick = async (request: RequestWithStatus) => {
     setSelectedRequest(request)
     setNewStatusId(request.statusId)
     setPreviewOpen(true)
@@ -131,14 +131,14 @@ export default function AdminRequestsPage() {
       // Update local state
       setRequests(prev => prev.map(req => 
         req.id === selectedRequest.id 
-          ? { ...req, statusId: newStatusId, status: statuses.find(s => s.id === newStatusId) }
+          ? { ...req, statusId: newStatusId, status: statuses.find(s => s.id === newStatusId)! }
           : req
       ))
       
       setSelectedRequest(prev => prev ? {
         ...prev,
         statusId: newStatusId,
-        status: statuses.find(s => s.id === newStatusId)
+        status: statuses.find(s => s.id === newStatusId)!
       } : null)
       
       setEditingStatus(false)
@@ -214,7 +214,6 @@ export default function AdminRequestsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="page_change">Cambio de página</SelectItem>
                   <SelectItem value="product">Producto</SelectItem>
                 </SelectContent>
               </Select>
@@ -264,12 +263,12 @@ export default function AdminRequestsPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {req.type === 'page_change' ? 'Cambio' : 'Producto'}
+                        Producto
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Link href={`/admin/requests/${req.id}`} className="hover:underline">
-                        {req.type === 'page_change' ? req.pageSection : req.productTitle}
+                        {req.productTitle}
                       </Link>
                     </TableCell>
                     <TableCell>
@@ -325,7 +324,7 @@ export default function AdminRequestsPage() {
                     <h4 className="font-semibold mb-2">Información General</h4>
                     <div className="space-y-2 text-sm">
                       <p><span className="font-medium">Cliente:</span> {selectedRequest.clientName}</p>
-                      <p><span className="font-medium">Tipo:</span> {selectedRequest.type === 'page_change' ? 'Cambio de página' : 'Producto'}</p>
+                      <p><span className="font-medium">Tipo:</span> Producto</p>
                       <p><span className="font-medium">Urgencia:</span> {selectedRequest.urgency === 'urgent' ? 'Urgente' : 'Normal'}</p>
                       <p><span className="font-medium">Fecha:</span> {new Date(selectedRequest.createdAt).toLocaleDateString('es-MX')}</p>
                     </div>
@@ -403,15 +402,7 @@ export default function AdminRequestsPage() {
                 {/* Request Details */}
                 <div>
                   <h4 className="font-semibold mb-2">Detalles de la Solicitud</h4>
-                  {selectedRequest.type === 'page_change' ? (
-                    <div className="space-y-2 text-sm">
-                      <p><span className="font-medium">Sección:</span> {selectedRequest.pageSection}</p>
-                      <p><span className="font-medium">Descripción del cambio:</span></p>
-                      <p className="text-muted-foreground bg-muted p-3 rounded">
-                        {selectedRequest.changeDescription}
-                      </p>
-                    </div>
-                  ) : (
+                  {selectedRequest.type === 'product' ? (
                     <div className="space-y-2 text-sm">
                       <p><span className="font-medium">Título del producto:</span> {selectedRequest.productTitle}</p>
                       <p><span className="font-medium">Categoría:</span> {selectedRequest.productCategory}</p>
@@ -429,7 +420,7 @@ export default function AdminRequestsPage() {
                         </>
                       )}
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Attachments */}

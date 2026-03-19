@@ -272,7 +272,7 @@ export default function ClientPostsPage() {
     <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Publicaciones</h2>
-        <p className="text-muted-foreground">Revisa, aprueba o solicita cambios en tu contenido de redes sociales</p>
+        <p className="text-muted-foreground">Revisa y aprueba tu contenido de redes sociales</p>
       </div>
 
       {pending.length > 0 && (

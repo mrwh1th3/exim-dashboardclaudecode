@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
-import { WebPage, WebPageChange, WebPageStatus } from '@/types/web-pages'
+import { WebPage, WebPageStatus } from '@/types/web-pages'
 import { Request, RequestStatus } from '@/types/requests'
 
 // Extended type for this component
@@ -24,11 +24,18 @@ import {
   Rocket,
   ExternalLink,
   Plus,
-  CheckCircle2,
-  Circle,
-  Loader2,
   MessageSquare,
+  Server,
+  Activity,
+  Clock,
+  Upload,
+  X,
 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 const statusConfig: Record<WebPageStatus, { label: string; color: string; progress: number }> = {
   draft: { label: 'Borrador', color: 'bg-gray-500', progress: 10 },
@@ -38,25 +45,41 @@ const statusConfig: Record<WebPageStatus, { label: string; color: string; progre
   maintenance: { label: 'Mantenimiento', color: 'bg-orange-500', progress: 100 },
 }
 
-const changeStatusIcon: Record<string, React.ReactNode> = {
-  pending: <Circle className="h-4 w-4 text-muted-foreground" />,
-  in_progress: <Loader2 className="h-4 w-4 text-blue-500" />,
-  completed: <CheckCircle2 className="h-4 w-4 text-green-500" />,
+// Hosting status based on URL (same logic as admin)
+const getHostingStatus = (url?: string) => {
+  return !!url
 }
 
-const changeStatusLabel: Record<string, string> = {
-  pending: 'Pendiente',
-  in_progress: 'En progreso',
-  completed: 'Completado',
+const getServerStatus = (url?: string) => {
+  return url ? 'online' : 'offline'
+}
+
+const getDnsStatus = (domain?: string) => {
+  return domain ? 'active' : 'error'
 }
 
 export default function ClientWebPage() {
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
   const [webPage, setWebPage] = useState<WebPage | null>(null)
-  const [changes, setChanges] = useState<WebPageChange[]>([])
   const [requests, setRequests] = useState<RequestWithStatus[]>([])
   const [loading, setLoading] = useState(true)
+  const [newRequestOpen, setNewRequestOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  // New request form state
+  const [requestType, setRequestType] = useState<'product' | 'page_change'>('product')
+  const [productTitle, setProductTitle] = useState('')
+  const [productPrice, setProductPrice] = useState('')
+  const [productCategory, setProductCategory] = useState('')
+  const [productDescription, setProductDescription] = useState('')
+  const [implementationDescription, setImplementationDescription] = useState('')
+  const [pageSection, setPageSection] = useState('')
+  const [changeDescription, setChangeDescription] = useState('')
+  const [productFiles, setProductFiles] = useState<File[]>([])
+  const [changeFiles, setChangeFiles] = useState<File[]>([])
+  const productFileRef = useRef<HTMLInputElement>(null)
+  const changeFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -81,25 +104,6 @@ export default function ClientWebPage() {
           createdAt: data.created_at,
           updatedAt: data.updated_at,
         })
-        
-        // Load changes
-        const { data: changeData } = await supabase
-          .from('web_page_changes')
-          .select('*')
-          .eq('web_page_id', data.id)
-          .order('created_at', { ascending: false })
-        setChanges(
-          (changeData ?? []).map((c: any) => ({
-            id: c.id,
-            webPageId: c.web_page_id,
-            title: c.title,
-            description: c.description,
-            status: c.status,
-            requestId: c.request_id ?? undefined,
-            createdAt: c.created_at,
-            completedAt: c.completed_at ?? undefined,
-          }))
-        )
         
         // Load requests related to web pages
         const { data: requestData } = await supabase
@@ -141,6 +145,129 @@ export default function ClientWebPage() {
       setLoading(false)
     })()
   }, [user?.id])
+
+  // New request form handlers
+  const handleProductFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setProductFiles((prev: File[]) => [...prev, ...Array.from(e.target.files!)])
+    }
+  }
+
+  const removeProductFile = (index: number) => {
+    setProductFiles((prev: File[]) => prev.filter((_: any, i: any) => i !== index))
+  }
+
+  const handleChangeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setChangeFiles((prev: File[]) => [...prev, ...Array.from(e.target.files!)])
+    }
+  }
+
+  const removeChangeFile = (index: number) => {
+    setChangeFiles((prev: File[]) => prev.filter((_: any, i: any) => i !== index))
+  }
+
+  const handleSubmitRequest = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!user?.id) return
+    
+    // Validate based on request type
+    if (requestType === 'product') {
+      if (!productTitle || !productPrice || !productDescription) {
+        return
+      }
+    } else {
+      if (!pageSection || !changeDescription) {
+        return
+      }
+    }
+    
+    setSubmitting(true)
+    try {
+      const supabase = createClient()
+      
+      // Get default status
+      const { data: statusData } = await supabase
+        .from('request_statuses')
+        .select('id')
+        .order('order_index', { ascending: true })
+        .limit(1)
+        .single()
+      
+      const statusId = statusData?.id
+      
+      if (requestType === 'product') {
+        const { error } = await supabase.from('requests').insert({
+          client_id: user.id,
+          type: 'product',
+          status_id: statusId,
+          urgency: 'normal',
+          product_title: productTitle,
+          product_price: parseFloat(productPrice),
+          product_category: productCategory || null,
+          product_description: productDescription,
+          implementation_description: implementationDescription || null,
+        })
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('requests').insert({
+          client_id: user.id,
+          type: 'page_change',
+          status_id: statusId,
+          urgency: 'normal',
+          page_section: pageSection,
+          change_description: changeDescription,
+        })
+        if (error) throw error
+      }
+      
+      // Reset form and close dialog
+      resetForm()
+      setNewRequestOpen(false)
+      
+      // Reload requests
+      const { data: requestData } = await supabase
+        .from('requests')
+        .select(`
+          id, type, page_section, change_description, created_at, updated_at,
+          request_statuses (name, color)
+        `)
+        .eq('client_id', user.id)
+        .order('created_at', { ascending: false })
+      
+      setRequests((requestData ?? []).map((r: any) => ({
+        id: r.id,
+        type: r.type,
+        statusId: r.request_statuses?.id,
+        status: r.request_statuses,
+        urgency: 'normal',
+        pageSection: r.page_section,
+        changeDescription: r.change_description,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        title: r.type === 'product' ? r.product_title || 'Producto' : r.page_section || 'Cambio web',
+      })))
+      
+    } catch {
+      // Handle error
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const resetForm = () => {
+    setRequestType('product')
+    setProductTitle('')
+    setProductPrice('')
+    setProductCategory('')
+    setProductDescription('')
+    setImplementationDescription('')
+    setPageSection('')
+    setChangeDescription('')
+    setProductFiles([])
+    setChangeFiles([])
+  }
 
   if (loading) {
     return (
@@ -243,17 +370,6 @@ export default function ClientWebPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Shield className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Certificado SSL</p>
-                <p className="font-medium">
-                  {webPage.sslExpiry
-                    ? 'Expira: ' + new Date(webPage.sslExpiry).toLocaleDateString('es-MX')
-                    : 'No configurado'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
               <Rocket className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Último despliegue</p>
@@ -268,68 +384,75 @@ export default function ClientWebPage() {
         </CardContent>
       </Card>
 
+      {/* Hosting Status Card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Cambios recientes</CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push('/client/requests/new')}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Solicitar cambio
-          </Button>
+        <CardHeader>
+          <CardTitle>Estado de Hosting</CardTitle>
         </CardHeader>
         <CardContent>
-          {changes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No hay cambios registrados aún.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {changes.map((change, idx) => (
-                <div key={change.id}>
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5">{changeStatusIcon[change.status]}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{change.title}</p>
-                        <Badge variant="outline" className="text-xs">
-                          {changeStatusLabel[change.status]}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {change.description}
-                      </p>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                        <span>{new Date(change.createdAt).toLocaleDateString('es-MX')}</span>
-                        {change.completedAt && (
-                          <span>
-                            Completado: {new Date(change.completedAt).toLocaleDateString('es-MX')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  {idx < changes.length - 1 && <Separator className="mt-4" />}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3">
+              <Server className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Estado del Hosting</p>
+                <div className="flex items-center gap-2">
+                  {getHostingStatus(webPage?.url) ? (
+                    <>
+                      <Activity className="h-4 w-4 text-green-600" />
+                      <p className="font-medium text-green-600">Activo</p>
+                    </>
+                  ) : (
+                    <>
+                      <Server className="h-4 w-4 text-gray-600" />
+                      <p className="font-medium text-gray-600">Inactivo</p>
+                    </>
+                  )}
                 </div>
-              ))}
+              </div>
             </div>
-          )}
+            <div className="flex items-center gap-3">
+              <Activity className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Estado del Servidor</p>
+                <p className={`font-medium ${getServerStatus(webPage?.url) === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                  {getServerStatus(webPage?.url) === 'online' ? 'En línea' : 'Fuera de línea'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Globe className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Estado DNS</p>
+                <p className={`font-medium ${getDnsStatus(webPage?.domain) === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                  {getDnsStatus(webPage?.domain) === 'active' ? 'Activo' : 'Error'}
+                </p>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
+      
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Historial de Solicitudes</CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push('/client/requests')}
-          >
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Ver todas
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => setNewRequestOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Agregar
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => router.push('/client/requests')}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Ver todas
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {requests.length === 0 ? (
@@ -374,6 +497,234 @@ export default function ClientWebPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* New Request Dialog */}
+      <Dialog open={newRequestOpen} onOpenChange={setNewRequestOpen}>
+        <DialogContent className="dialog-content max-w-2xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Nueva Solicitud
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[80vh] pr-4">
+            <form onSubmit={handleSubmitRequest} className="space-y-6">
+              {/* Type Selection */}
+              <div>
+                <h4 className="font-semibold mb-3">Tipo de Solicitud</h4>
+                <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+                  <button
+                    type="button"
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      requestType === 'product' 
+                        ? 'bg-background shadow-sm text-foreground' 
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    onClick={() => setRequestType('product')}
+                  >
+                    📦 Producto
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      requestType === 'page_change' 
+                        ? 'bg-background shadow-sm text-foreground' 
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    onClick={() => setRequestType('page_change')}
+                  >
+                    🌐 Cambio Web
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              {requestType === 'product' ? (
+                <div className="space-y-4">
+                  <h4 className="font-semibold">Detalles del Producto</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="productTitle">Nombre del producto *</Label>
+                      <Input
+                        id="productTitle"
+                        placeholder="Ej: Vestido Floral Verano"
+                        value={productTitle}
+                        onChange={(e) => setProductTitle(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="productPrice">Precio *</Label>
+                      <Input
+                        id="productPrice"
+                        type="number"
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        value={productPrice}
+                        onChange={(e) => setProductPrice(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="productCategory">Categoría</Label>
+                    <Input
+                      id="productCategory"
+                      placeholder="Ej: Ropa, Electrónica, Alimentos..."
+                      value={productCategory}
+                      onChange={(e) => setProductCategory(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="productDescription">Descripción del producto *</Label>
+                    <Textarea
+                      id="productDescription"
+                      placeholder="Describe las características del producto..."
+                      value={productDescription}
+                      onChange={(e) => setProductDescription(e.target.value)}
+                      rows={4}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="implementationDescription">Instrucciones de implementación</Label>
+                    <Textarea
+                      id="implementationDescription"
+                      placeholder="Indica en qué categoría o sección debe aparecer..."
+                      value={implementationDescription}
+                      onChange={(e) => setImplementationDescription(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Archivos adjuntos</Label>
+                    <div
+                      className="flex items-center justify-center rounded-lg border-2 border-dashed p-6 cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => productFileRef.current?.click()}
+                    >
+                      <div className="text-center">
+                        <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Haz clic para seleccionar archivos
+                        </p>
+                      </div>
+                    </div>
+                    <input
+                      ref={productFileRef}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleProductFileChange}
+                    />
+                    {productFiles.length > 0 && (
+                      <div className="space-y-2 mt-3">
+                        {productFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between rounded-lg border p-2 px-3">
+                            <span className="text-sm truncate">{file.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => removeProductFile(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <h4 className="font-semibold">Detalles del Cambio</h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="pageSection">Sección de la página *</Label>
+                    <Input
+                      id="pageSection"
+                      placeholder="Ej: Página principal, Catálogo, Contacto..."
+                      value={pageSection}
+                      onChange={(e) => setPageSection(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="changeDescription">Descripción del cambio *</Label>
+                    <Textarea
+                      id="changeDescription"
+                      placeholder="Describe detalladamente el cambio que necesitas..."
+                      value={changeDescription}
+                      onChange={(e) => setChangeDescription(e.target.value)}
+                      rows={6}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Archivos adjuntos</Label>
+                    <div
+                      className="flex items-center justify-center rounded-lg border-2 border-dashed p-6 cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => changeFileRef.current?.click()}
+                    >
+                      <div className="text-center">
+                        <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Haz clic para seleccionar archivos
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Imágenes, documentos, etc.
+                        </p>
+                      </div>
+                    </div>
+                    <input
+                      ref={changeFileRef}
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.txt"
+                      className="hidden"
+                      onChange={handleChangeFileChange}
+                    />
+                    {changeFiles.length > 0 && (
+                      <div className="space-y-2 mt-3">
+                        {changeFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between rounded-lg border p-2 px-3">
+                            <span className="text-sm truncate">{file.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => removeChangeFile(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <div className="pt-4 border-t">
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting ? 'Enviando...' : 'Enviar Solicitud'}
+                </Button>
+              </div>
+            </form>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

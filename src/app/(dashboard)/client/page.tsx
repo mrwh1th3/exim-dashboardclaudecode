@@ -1,14 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BarChart3, FileText, Calendar, ArrowRight, User, Plus, CalendarDays } from 'lucide-react'
+import { BarChart3, FileText, Calendar, ArrowRight, User, Plus, CalendarDays, Upload, X } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
 import { StatCard } from '@/components/shared/stat-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   OnboardingDialog,
   createPlaceholderImage,
@@ -34,7 +39,7 @@ const ONBOARDING_SLIDES: OnboardingSlide[] = [
     id: 'requests',
     alt: 'Gestión de Solicitudes',
     title: 'Gestiona tus Solicitudes',
-    description: 'Desde "Solicitudes" puedes pedir cambios en tu página web, agregar productos y más. Respondemos en menos de 48 horas.',
+    description: 'Desde "Solicitudes" puedes agregar productos y más. Respondemos en menos de 48 horas.',
     image: createPlaceholderImage({ accentColor: '#0B1E47', endColor: '#CDE2FF', startColor: '#EAF2FF', title: 'Solicitudes' }),
   },
   {
@@ -53,7 +58,23 @@ export default function ClientPortalPage() {
   const [activeRequestsCount, setActiveRequestsCount] = useState(0)
   const [nextPost, setNextPost] = useState<{ scheduled_date: string; title?: string } | null>(null)
   const [onboardingProgress, setOnboardingProgress] = useState(0)
-  const [onboardingText, setOnboardingText] = useState('Sin etapas')
+  const [onboardingText, setOnboardingText] = useState('Sin datos')
+  const [newRequestOpen, setNewRequestOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  // New request form state
+  const [requestType, setRequestType] = useState<'product' | 'page_change'>('product')
+  const [productTitle, setProductTitle] = useState('')
+  const [productPrice, setProductPrice] = useState('')
+  const [productCategory, setProductCategory] = useState('')
+  const [productDescription, setProductDescription] = useState('')
+  const [implementationDescription, setImplementationDescription] = useState('')
+  const [pageSection, setPageSection] = useState('')
+  const [changeDescription, setChangeDescription] = useState('')
+  const [productFiles, setProductFiles] = useState<File[]>([])
+  const [changeFiles, setChangeFiles] = useState<File[]>([])
+  const productFileRef = useRef<HTMLInputElement>(null)
+  const changeFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -187,7 +208,7 @@ export default function ClientPortalPage() {
                       <Plus className="h-5 w-5 text-primary" />
                       <p className="font-semibold">Nueva Solicitud</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">Envía un cambio o producto</p>
+                    <p className="text-xs text-muted-foreground">Envía un nuevo producto</p>
                   </div>
                   <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </div>

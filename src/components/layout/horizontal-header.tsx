@@ -108,7 +108,7 @@ export function HorizontalHeader() {
 	];
 
 	const clientSocialNav: LinkItem[] = [
-		{ title: 'Publicaciones', href: '/client/social/posts', icon: <CheckSquare size={16} />, description: 'Aprobar o pedir cambios' },
+		{ title: 'Publicaciones', href: '/client/social/posts', icon: <CheckSquare size={16} />, description: 'Aprobar contenido' },
 		{ title: 'Calendario', href: '/client/social/calendar', icon: <Calendar size={16} />, description: 'Calendario de contenido' },
 		{ title: 'Estrategia', href: '/client/social/strategy', icon: <Eye size={16} />, description: 'Ver estrategia' },
 		{ title: 'Brand Guideline', href: '/client/social/brand', icon: <Palette size={16} />, description: 'Identidad visual de mi marca' },
