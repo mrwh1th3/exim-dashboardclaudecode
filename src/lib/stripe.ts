@@ -4,10 +4,11 @@ let _stripe: Stripe | null = null
 
 export function getStripe(): Stripe {
   if (!_stripe) {
-    if (!process.env.STRIPE_SECRET_KEY) {
-      throw new Error('STRIPE_SECRET_KEY is not set')
+    const key = process.env.STRIPE_SECRET_KEY ?? process.env.public_api_stripe
+    if (!key) {
+      throw new Error('Falta STRIPE_SECRET_KEY o public_api_stripe en las variables de entorno')
     }
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    _stripe = new Stripe(key, {
       apiVersion: '2026-02-25.clover',
     })
   }

@@ -5,11 +5,11 @@ import type Stripe from 'stripe'
 
 export async function POST() {
   // Guard: detect placeholder env vars before any API call
-  const stripeKey = process.env.STRIPE_SECRET_KEY ?? ''
+  const stripeKey = process.env.STRIPE_SECRET_KEY ?? process.env.public_api_stripe ?? ''
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.service_role ?? ''
   if (!stripeKey || stripeKey.startsWith('REPLACE_WITH')) {
     return NextResponse.json(
-      { error: 'STRIPE_SECRET_KEY no está configurada en Vercel. Ve a Settings → Environment Variables y agrega tu clave sk_live_ o sk_test_.' },
+      { error: 'Falta la clave secreta de Stripe. Agrégala en Vercel como "STRIPE_SECRET_KEY" o "public_api_stripe".' },
       { status: 500 },
     )
   }
