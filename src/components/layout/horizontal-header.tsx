@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/navigation-menu';
 import { MenuToggleIcon } from '@/components/ui/menu-toggle-icon';
 import { createPortal } from 'react-dom';
-import { RoleSwitcher } from '@/components/layout/role-switcher';
+import { UserMenu } from '@/components/layout/user-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
 	LayoutDashboard,
@@ -240,7 +240,7 @@ export function HorizontalHeader() {
 
 					{/* Acciones — esquina derecha */}
 					<div className="flex items-center gap-3">
-						<RoleSwitcher />
+						<UserMenu />
 						<ThemeToggle />
 						<Button
 							size="icon"
