@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
+import { WebPage } from '@/types/web-pages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,6 +24,31 @@ import {
 export default function NewRequestPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
+
+  // Function to get client's web pages using client Supabase
+  const getClientWebPages = async (clientId: string): Promise<WebPage[]> => {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('web_pages')
+      .select('*, profiles!web_pages_client_id_fkey(full_name)')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      clientId: row.client_id,
+      clientName: '',
+      domain: row.domain ?? undefined,
+      url: row.url ?? undefined,
+      status: row.status,
+      lastDeployedAt: row.last_deployed_at ?? undefined,
+      sslExpiry: row.ssl_expiry ?? undefined,
+      planId: row.plan_id ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }))
+  }
 
   // Page change form state
   const [pageSection, setPageSection] = useState('')
@@ -84,18 +110,43 @@ export default function NewRequestPage() {
     try {
       const supabase = createClient()
       const statusId = await getDefaultStatusId()
-      const { error } = await supabase.from('requests').insert({
+      
+      // Create the request
+      const { data: requestData, error: requestError } = await supabase.from('requests').insert({
         client_id: user.id,
         type: 'page_change',
         status_id: statusId,
         urgency,
         page_section: pageSection,
         change_description: changeDescription,
-      })
-      if (error) throw error
-      toast.success('Solicitud de cambio enviada exitosamente', {
-        description: 'Te notificaremos cuando sea revisada.',
-      })
+      }).select().single()
+      
+      if (requestError) throw requestError
+      
+      // Get client's web pages to create the change
+      const clientWebPages = await getClientWebPages(user.id)
+      
+      // If client has web pages, create a change for the first one (or most recently updated)
+      if (clientWebPages.length > 0) {
+        const webPage = clientWebPages[0] // Use the first/most recent web page
+        
+        await supabase.from('web_page_changes').insert({
+          web_page_id: webPage.id,
+          title: `Cambio solicitado: ${pageSection}`,
+          description: changeDescription,
+          status: 'pending',
+          request_id: requestData.id,
+        })
+        
+        toast.success('Solicitud de cambio enviada exitosamente', {
+          description: 'Se ha agregado un cambio a tu página web.',
+        })
+      } else {
+        toast.success('Solicitud de cambio enviada exitosamente', {
+          description: 'Te notificaremos cuando sea revisada.',
+        })
+      }
+      
       router.push('/client/requests')
     } catch {
       toast.error('Error al enviar la solicitud. Intenta de nuevo.')

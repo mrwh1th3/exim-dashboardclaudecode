@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { WebPage, WebPageStatus, WebPageChange } from '@/types/web-pages'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -31,6 +34,7 @@ import {
   Circle,
   Loader2,
   ExternalLink,
+  Server,
 } from 'lucide-react'
 
 const statusConfig: Record<WebPageStatus, { label: string; color: string }> = {
@@ -66,9 +70,84 @@ export default function AdminWebPageDetailPage() {
   const [loading, setLoading] = useState(true)
   const [addChangeOpen, setAddChangeOpen] = useState(false)
   const [changeTitle, setChangeTitle] = useState('')
+  const [hostingEnabled, setHostingEnabled] = useState(false)
+  const [sslStatus, setSslStatus] = useState<'valid' | 'expiring' | 'expired' | 'none'>('none')
+  const [updatingFields, setUpdatingFields] = useState(false)
   const [changeDescription, setChangeDescription] = useState('')
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [updatingChangeId, setUpdatingChangeId] = useState<string | null>(null)
+
+  // Functions to update hosting and SSL
+  const handleHostingToggle = async (enabled: boolean) => {
+    if (!page) return
+    setUpdatingFields(true)
+    try {
+      const { error } = await supabase
+        .from('web_pages')
+        .update({ 
+          url: enabled ? page.url || `https://${page.domain || 'example.com'}` : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', page.id)
+      
+      if (error) throw error
+      setHostingEnabled(enabled)
+      toast.success(`Hosting ${enabled ? 'activado' : 'desactivado'} exitosamente`)
+    } catch (error) {
+      console.error('Error updating hosting:', error)
+      toast.error('Error al actualizar hosting')
+    } finally {
+      setUpdatingFields(false)
+    }
+  }
+
+  const handleSslStatusUpdate = async (newStatus: typeof sslStatus) => {
+    if (!page) return
+    setUpdatingFields(true)
+    try {
+      let newExpiry: string | null = null
+      
+      if (newStatus === 'valid') {
+        // Set expiry to 1 year from now
+        const expiryDate = new Date()
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1)
+        newExpiry = expiryDate.toISOString()
+      } else if (newStatus === 'expiring') {
+        // Set expiry to 15 days from now
+        const expiryDate = new Date()
+        expiryDate.setDate(expiryDate.getDate() + 15)
+        newExpiry = expiryDate.toISOString()
+      } else if (newStatus === 'expired') {
+        // Set expiry to 10 days ago
+        const expiryDate = new Date()
+        expiryDate.setDate(expiryDate.getDate() - 10)
+        newExpiry = expiryDate.toISOString()
+      } else {
+        newExpiry = null
+      }
+
+      const { error } = await supabase
+        .from('web_pages')
+        .update({ 
+          ssl_expiry: newExpiry,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', page.id)
+      
+      if (error) throw error
+      
+      setSslStatus(newStatus)
+      if (page) {
+        setPage({ ...page, sslExpiry: newExpiry ?? undefined })
+      }
+      toast.success('Estado SSL actualizado exitosamente')
+    } catch (error) {
+      console.error('Error updating SSL status:', error)
+      toast.error('Error al actualizar estado SSL')
+    } finally {
+      setUpdatingFields(false)
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -97,6 +176,26 @@ export default function AdminWebPageDetailPage() {
           createdAt: pageData.created_at,
           updatedAt: pageData.updated_at,
         })
+
+        // Determine SSL status
+        if (pageData.ssl_expiry) {
+          const expiryDate = new Date(pageData.ssl_expiry)
+          const now = new Date()
+          const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          
+          if (daysUntilExpiry < 0) {
+            setSslStatus('expired')
+          } else if (daysUntilExpiry <= 30) {
+            setSslStatus('expiring')
+          } else {
+            setSslStatus('valid')
+          }
+        } else {
+          setSslStatus('none')
+        }
+
+        // Determine hosting status (for now, assume enabled if URL exists)
+        setHostingEnabled(!!pageData.url)
 
         // Load changes
         const { data: changesData, error: changesError } = await supabase
@@ -311,13 +410,46 @@ export default function AdminWebPageDetailPage() {
             </div>
             <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">SSL Expira</p>
-                <p className="font-medium">
-                  {page.sslExpiry
-                    ? new Date(page.sslExpiry).toLocaleDateString('es-MX')
-                    : '—'}
-                </p>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground">Estado SSL</p>
+                <div className="flex items-center gap-2">
+                  <Select 
+                    value={sslStatus} 
+                    onValueChange={(value) => handleSslStatusUpdate(value as typeof sslStatus)}
+                    disabled={updatingFields}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="valid">Válido</SelectItem>
+                      <SelectItem value="expiring">Por expirar</SelectItem>
+                      <SelectItem value="expired">Expirado</SelectItem>
+                      <SelectItem value="none">Sin SSL</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {page.sslExpiry && (
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(page.sslExpiry).toLocaleDateString('es-MX')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Server className="h-5 w-5 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground">Hosting</p>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={hostingEnabled}
+                    onCheckedChange={handleHostingToggle}
+                    disabled={updatingFields}
+                  />
+                  <span className="text-sm font-medium">
+                    {hostingEnabled ? 'Activo' : 'Inactivo'}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -411,6 +543,11 @@ export default function AdminWebPageDetailPage() {
                         <Badge variant="outline" className="text-xs">
                           {changeStatusLabel[change.status]}
                         </Badge>
+                        {change.requestId && (
+                          <Badge variant="secondary" className="text-xs">
+                            De solicitud
+                          </Badge>
+                        )}
                       </div>
                       {change.description && (
                         <p className="text-sm text-muted-foreground mt-1">
@@ -424,6 +561,17 @@ export default function AdminWebPageDetailPage() {
                         {change.completedAt && (
                           <span>
                             Completado: {new Date(change.completedAt).toLocaleDateString('es-MX')}
+                          </span>
+                        )}
+                        {change.requestId && (
+                          <span>
+                            Solicitud: 
+                            <Link 
+                              href={`/admin/requests/${change.requestId}`}
+                              className="ml-1 text-primary hover:underline"
+                            >
+                              Ver solicitud
+                            </Link>
                           </span>
                         )}
                       </div>

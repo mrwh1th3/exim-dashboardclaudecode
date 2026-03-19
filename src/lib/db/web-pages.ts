@@ -55,3 +55,31 @@ export async function updateWebPage(id: string, data: Partial<WebPage>): Promise
     ssl_expiry: data.sslExpiry,
   }).eq('id', id)
 }
+
+export async function createWebPageChange(webPageId: string, title: string, description: string, requestId?: string): Promise<WebPageChange> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('web_page_changes')
+    .insert({
+      web_page_id: webPageId,
+      title,
+      description,
+      status: 'pending',
+      request_id: requestId,
+    })
+    .select()
+    .single()
+  
+  if (error) throw error
+  
+  return {
+    id: data.id,
+    webPageId: data.web_page_id,
+    title: data.title,
+    description: data.description || '',
+    status: data.status,
+    requestId: data.request_id ?? undefined,
+    createdAt: data.created_at,
+    completedAt: data.completed_at ?? undefined,
+  }
+}

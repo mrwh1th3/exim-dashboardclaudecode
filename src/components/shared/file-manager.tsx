@@ -142,7 +142,7 @@ export function FileManager({ section, clientId, isAdmin }: FileManagerProps) {
         .from('files')
         .select('*')
         .eq('section', section)
-        .order('type', { ascending: false })
+        .order('type', { ascending: false }) // folders first
         .order('name', { ascending: true })
 
       // Filter by client
@@ -150,6 +150,13 @@ export function FileManager({ section, clientId, isAdmin }: FileManagerProps) {
         query = query.eq('client_id', clientId)
       } else if (isAdmin && selectedClientId !== 'all') {
         query = query.eq('client_id', selectedClientId)
+      }
+
+      // Filter by current folder
+      if (currentFolderId === null) {
+        query = query.is('parent_folder_id', null)
+      } else if (currentFolderId) {
+        query = query.eq('parent_folder_id', currentFolderId)
       }
 
       const { data, error } = await query
@@ -181,7 +188,7 @@ export function FileManager({ section, clientId, isAdmin }: FileManagerProps) {
     } finally {
       setLoading(false)
     }
-  }, [supabase, section, isAdmin, clientId, selectedClientId])
+  }, [supabase, section, isAdmin, clientId, selectedClientId, currentFolderId])
 
   useEffect(() => {
     loadFiles()

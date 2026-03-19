@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
 import { WebPage, WebPageChange, WebPageStatus } from '@/types/web-pages'
+import { Request, RequestStatus } from '@/types/requests'
+
+// Extended type for this component
+interface RequestWithStatus extends Request {
+  status: RequestStatus
+  title: string
+}
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +27,7 @@ import {
   CheckCircle2,
   Circle,
   Loader2,
+  MessageSquare,
 } from 'lucide-react'
 
 const statusConfig: Record<WebPageStatus, { label: string; color: string; progress: number }> = {
@@ -47,6 +55,7 @@ export default function ClientWebPage() {
   const user = useAuthStore((s) => s.user)
   const [webPage, setWebPage] = useState<WebPage | null>(null)
   const [changes, setChanges] = useState<WebPageChange[]>([])
+  const [requests, setRequests] = useState<RequestWithStatus[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -72,6 +81,8 @@ export default function ClientWebPage() {
           createdAt: data.created_at,
           updatedAt: data.updated_at,
         })
+        
+        // Load changes
         const { data: changeData } = await supabase
           .from('web_page_changes')
           .select('*')
@@ -89,6 +100,43 @@ export default function ClientWebPage() {
             completedAt: c.completed_at ?? undefined,
           }))
         )
+        
+        // Load requests related to web pages
+        const { data: requestData } = await supabase
+          .from('requests')
+          .select(`
+            id, type, page_section, change_description, created_at, updated_at,
+            request_statuses (name, color)
+          `)
+          .eq('client_id', user.id)
+          .eq('type', 'page_change')
+          .order('created_at', { ascending: false })
+          .limit(10)
+        
+        if (requestData) {
+          setRequests(requestData.map((r: any): RequestWithStatus => ({
+            id: r.id,
+            clientId: user.id,
+            clientName: '',
+            type: r.type,
+            statusId: '',
+            urgency: 'normal',
+            pageSection: r.page_section,
+            changeDescription: r.change_description,
+            attachments: [],
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+            status: {
+              id: '',
+              name: r.request_statuses?.name ?? 'Sin estado',
+              color: r.request_statuses?.color ?? '#888',
+              orderIndex: 0,
+              isDefault: false,
+              createdAt: '',
+            },
+            title: r.page_section || r.change_description || 'Solicitud de cambio',
+          })))
+        }
       }
       setLoading(false)
     })()
@@ -264,6 +312,62 @@ export default function ClientWebPage() {
                     </div>
                   </div>
                   {idx < changes.length - 1 && <Separator className="mt-4" />}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Historial de Solicitudes</CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => router.push('/client/requests')}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Ver todas
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {requests.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No hay solicitudes registradas aún.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {requests.map((request, idx) => (
+                <div key={request.id}>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      <div 
+                        className="h-4 w-4 rounded-full"
+                        style={{ backgroundColor: request.status.color }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{request.title}</p>
+                        <Badge 
+                          variant="outline" 
+                          className="text-xs"
+                          style={{ 
+                            borderColor: request.status.color + '40',
+                            color: request.status.color 
+                          }}
+                        >
+                          {request.status.name}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                        <span>Creada: {new Date(request.createdAt).toLocaleDateString('es-MX')}</span>
+                        <span>Actualizada: {new Date(request.updatedAt).toLocaleDateString('es-MX')}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {idx < requests.length - 1 && <Separator className="mt-4" />}
                 </div>
               ))}
             </div>

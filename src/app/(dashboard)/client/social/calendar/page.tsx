@@ -16,6 +16,8 @@ import {
   addMonths, subMonths, isSameDay, parseISO, startOfWeek, endOfWeek,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { ServiceNotAvailable } from '@/components/shared/service-not-available'
+import { useClientServices } from '@/hooks/use-client-services'
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-200 text-gray-700',
@@ -37,8 +39,14 @@ const dayHeaders = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
 export default function ClientSocialCalendarPage() {
   const { user } = useAuthStore()
+  const { hasSocialMedia, loading: servicesLoading } = useClientServices()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [clientPosts, setClientPosts] = useState<SocialPost[]>([])
+
+  // Show service not available if client doesn't have social media service
+  if (!servicesLoading && !hasSocialMedia) {
+    return <ServiceNotAvailable serviceName="Redes Sociales" />
+  }
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   // Actions

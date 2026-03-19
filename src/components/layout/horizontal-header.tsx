@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/stores/auth-store';
+import React from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
+import { useClientServices } from '@/hooks/use-client-services'
 import { Button } from '@/components/ui/button';
 import {
 	NavigationMenu,
@@ -53,6 +54,7 @@ export function HorizontalHeader() {
 	const router = useRouter();
 	const user = useAuthStore((s) => s.user);
 	const logout = useAuthStore((s) => s.logout);
+	const { hasSocialMedia } = useClientServices();
 	const isClient = user?.role === 'client';
 
 	async function handleLogout() {
@@ -119,7 +121,7 @@ export function HorizontalHeader() {
 	];
 
 	const mainNav = isClient ? clientNav : adminNav;
-	const socialNav = isClient ? clientSocialNav : adminSocialNav;
+	const socialNav = isClient && hasSocialMedia ? clientSocialNav : adminSocialNav;
 	const webNav = isClient ? clientWebNav : adminWebNav;
 	const settingsNav = !isClient ? adminSettingsNav : [];
 
@@ -171,26 +173,28 @@ export function HorizontalHeader() {
 								</NavigationMenuContent>
 							</NavigationMenuItem>
 
-							<NavigationMenuItem>
-								<NavigationMenuTrigger className="bg-transparent">Redes Sociales</NavigationMenuTrigger>
-								<NavigationMenuContent>
-									<div className="grid w-[400px] gap-3 p-4 md:w-[500px]">
-										{socialNav.map((item) => (
-											<NavigationMenuLink key={item.href} asChild>
-												<Link href={item.href} className={navLinkClass(item.href)}>
-													<div className="flex items-center gap-2 text-sm font-medium leading-none">
-														{item.icon}
-														{item.title}
-													</div>
-													<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-														{item.description}
-													</p>
-												</Link>
-											</NavigationMenuLink>
-										))}
-									</div>
-								</NavigationMenuContent>
-							</NavigationMenuItem>
+							{(!isClient || hasSocialMedia) && (
+								<NavigationMenuItem>
+									<NavigationMenuTrigger className="bg-transparent">Redes Sociales</NavigationMenuTrigger>
+									<NavigationMenuContent>
+										<div className="grid w-[400px] gap-3 p-4 md:w-[500px]">
+											{socialNav.map((item) => (
+												<NavigationMenuLink key={item.href} asChild>
+													<Link href={item.href} className={navLinkClass(item.href)}>
+														<div className="flex items-center gap-2 text-sm font-medium leading-none">
+															{item.icon}
+															{item.title}
+														</div>
+														<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+															{item.description}
+														</p>
+													</Link>
+												</NavigationMenuLink>
+											))}
+										</div>
+									</NavigationMenuContent>
+								</NavigationMenuItem>
+							)}
 
 							<NavigationMenuItem>
 								<NavigationMenuTrigger className="bg-transparent">Página Web</NavigationMenuTrigger>
@@ -242,15 +246,6 @@ export function HorizontalHeader() {
 					<div className="flex items-center gap-3">
 						<UserMenu />
 						<ThemeToggle />
-						<Button
-							size="icon"
-							variant="ghost"
-							onClick={handleLogout}
-							aria-label="Cerrar sesión"
-							className="hidden lg:inline-flex"
-						>
-							<LogOut className="h-4 w-4" />
-						</Button>
 						<Button
 							size="icon"
 							variant="outline"
@@ -305,34 +300,36 @@ export function HorizontalHeader() {
 							</div>
 
 							{/* Social Navigation */}
-							<div>
-								<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-									Redes Sociales
-								</h3>
-								<div className="space-y-2">
-									{socialNav.map((item) => (
-										<Link
-											key={item.href}
-											href={item.href}
-											onClick={() => setMobileMenuOpen(false)}
-											className={cn(
-												'flex items-center gap-3 rounded-[15px] px-3 py-2 text-sm font-medium transition-colors',
-												isActive(item.href)
-													? 'bg-primary text-primary-foreground'
-													: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-											)}
-										>
-											{item.icon}
-											<div>
-												<div>{item.title}</div>
-												{item.description && (
-													<div className="text-xs text-muted-foreground">{item.description}</div>
+							{(!isClient || hasSocialMedia) && (
+								<div>
+									<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+										Redes Sociales
+									</h3>
+									<div className="space-y-2">
+										{socialNav.map((item) => (
+											<Link
+												key={item.href}
+												href={item.href}
+												onClick={() => setMobileMenuOpen(false)}
+												className={cn(
+													'flex items-center gap-3 rounded-[15px] px-3 py-2 text-sm font-medium transition-colors',
+													isActive(item.href)
+														? 'bg-primary text-primary-foreground'
+														: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
 												)}
-											</div>
-										</Link>
-									))}
+											>
+												{item.icon}
+												<div>
+													<div>{item.title}</div>
+													{item.description && (
+														<div className="text-xs text-muted-foreground">{item.description}</div>
+													)}
+												</div>
+											</Link>
+										))}
+									</div>
 								</div>
-							</div>
+							)}
 
 							{/* Web Navigation */}
 							<div>

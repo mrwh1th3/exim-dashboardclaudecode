@@ -527,37 +527,6 @@ export default function AdminDashboardPage() {
           </div>
         </Panel>
       </div>
-
-      {/* ── Quick Stats bar ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 animate-fade-up anim-delay-500">
-        {[
-          { label: 'Tasa de retención', value: '94%',   icon: <TrendingUp className="h-4 w-4" />,   color: '#10B981' },
-          { label: 'Satisfacción',      value: '4.8/5', icon: <CheckCircle2 className="h-4 w-4" />, color: '#0EA5E9' },
-          { label: 'Resp. promedio',    value: '2h',    icon: <Clock className="h-4 w-4" />,        color: '#F59E0B' },
-          { label: 'Uptime del mes',    value: '99.9%', icon: <Activity className="h-4 w-4" />,     color: '#8B5CF6' },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all duration-200"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = `${s.color}40`}
-            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'}
-          >
-            <div style={{ color: s.color }}>{s.icon}</div>
-            <div>
-              <p
-                className="font-bold"
-                style={{ color: s.color, fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}
-              >
-                {s.value}
-              </p>
-              <p className="text-muted-foreground" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem' }}>
-                {s.label}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

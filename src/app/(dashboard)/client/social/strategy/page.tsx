@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/shared/empty-state'
 import { FileText, BookOpen } from 'lucide-react'
+import { ServiceNotAvailable } from '@/components/shared/service-not-available'
+import { useClientServices } from '@/hooks/use-client-services'
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -15,9 +17,15 @@ function stripHtml(html: string): string {
 
 export default function ClientStrategyPage() {
   const user = useAuthStore((s) => s.user)
+  const { hasSocialMedia, loading: servicesLoading } = useClientServices()
   const [strategies, setStrategies] = useState<SocialStrategy[]>([])
   const [selectedStrategy, setSelectedStrategy] = useState<SocialStrategy | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+
+  // Show service not available if client doesn't have social media service
+  if (!servicesLoading && !hasSocialMedia) {
+    return <ServiceNotAvailable serviceName="Redes Sociales" />
+  }
 
   useEffect(() => {
     if (!user?.id) return

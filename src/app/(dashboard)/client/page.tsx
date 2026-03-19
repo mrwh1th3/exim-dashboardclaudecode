@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { BarChart3, FileText, Calendar, ArrowRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { BarChart3, FileText, Calendar, ArrowRight, User, Plus, CalendarDays } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
 import { StatCard } from '@/components/shared/stat-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
-import { ShimmerButton } from '@/components/ui/shimmer-button'
-import { Meteors } from '@/components/ui/meteors'
+import { Button } from '@/components/ui/button'
 import {
   OnboardingDialog,
   createPlaceholderImage,
@@ -49,6 +48,7 @@ const ONBOARDING_SLIDES: OnboardingSlide[] = [
 
 export default function ClientPortalPage() {
   const user = useAuthStore((state) => state.user)
+  const router = useRouter()
   const [plan, setPlan] = useState<{ name: string; price: number; currency: string } | null>(null)
   const [activeRequestsCount, setActiveRequestsCount] = useState(0)
   const [nextPost, setNextPost] = useState<{ scheduled_date: string; title?: string } | null>(null)
@@ -118,9 +118,9 @@ export default function ClientPortalPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             Bienvenido,{' '}
-            <AnimatedGradientText colorFrom="#d86226" colorTo="#7e230c" speed={0.8}>
+            <span className="text-primary">
               {user?.fullName ?? 'Cliente'}
-            </AnimatedGradientText>
+            </span>
           </h1>
           <p className="text-muted-foreground">
             Resumen de tu cuenta y servicios
@@ -158,57 +158,58 @@ export default function ClientPortalPage() {
         />
       </div>
 
-      <Card className="relative overflow-hidden">
+      <Card>
         <CardHeader>
           <CardTitle>Acciones Rápidas</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
-            <Link href="/client/onboarding">
-              <ShimmerButton
-                background="rgba(216,98,38,0.15)"
-                shimmerColor="#d86226"
-                borderRadius="8px"
-                className="w-full justify-between h-auto py-4 px-4 border-primary/20 text-foreground"
-              >
-                <div className="text-left">
-                  <p className="font-semibold">Completar Onboarding</p>
-                  <p className="text-xs text-muted-foreground">Continúa con tu proceso</p>
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/client/onboarding')}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                      <User className="h-5 w-5 text-primary" />
+                      <p className="font-semibold">Completar Onboarding</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Continúa con tu proceso</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0" />
-              </ShimmerButton>
-            </Link>
-            <Link href="/client/requests/new">
-              <ShimmerButton
-                background="rgba(216,98,38,0.15)"
-                shimmerColor="#d86226"
-                borderRadius="8px"
-                className="w-full justify-between h-auto py-4 px-4 border-primary/20 text-foreground"
-              >
-                <div className="text-left">
-                  <p className="font-semibold">Nueva Solicitud</p>
-                  <p className="text-xs text-muted-foreground">Envía un cambio o producto</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/client/requests/new')}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Plus className="h-5 w-5 text-primary" />
+                      <p className="font-semibold">Nueva Solicitud</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Envía un cambio o producto</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0" />
-              </ShimmerButton>
-            </Link>
-            <Link href="/client/social/calendar">
-              <ShimmerButton
-                background="rgba(216,98,38,0.15)"
-                shimmerColor="#d86226"
-                borderRadius="8px"
-                className="w-full justify-between h-auto py-4 px-4 border-primary/20 text-foreground"
-              >
-                <div className="text-left">
-                  <p className="font-semibold">Ver Calendario</p>
-                  <p className="text-xs text-muted-foreground">Posts programados</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/client/social/calendar')}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CalendarDays className="h-5 w-5 text-primary" />
+                      <p className="font-semibold">Ver Calendario</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Posts programados</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0" />
-              </ShimmerButton>
-            </Link>
+              </CardContent>
+            </Card>
           </div>
         </CardContent>
-        <Meteors number={10} />
       </Card>
     </div>
   )

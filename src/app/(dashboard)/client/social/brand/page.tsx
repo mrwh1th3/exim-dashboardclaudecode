@@ -9,14 +9,22 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Palette, Type, Mic, BookOpen, Check, X } from 'lucide-react'
+import { ServiceNotAvailable } from '@/components/shared/service-not-available'
+import { useClientServices } from '@/hooks/use-client-services'
 
 const TONE_LABELS: Record<string, string> = { formal: 'Formal', neutral: 'Neutral', casual: 'Cercano / Casual' }
 const TREATMENT_LABELS: Record<string, string> = { tu: 'Tú', usted: 'Usted' }
 
 export default function ClientBrandPage() {
   const { user } = useAuthStore()
+  const { hasSocialMedia, loading: servicesLoading } = useClientServices()
   const [guide, setGuide] = useState<BrandGuideline | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Show service not available if client doesn't have social media service
+  if (!servicesLoading && !hasSocialMedia) {
+    return <ServiceNotAvailable serviceName="Redes Sociales" />
+  }
 
   useEffect(() => {
     if (!user?.id) return

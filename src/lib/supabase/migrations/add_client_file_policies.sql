@@ -8,6 +8,14 @@
 
 DO $$
 BEGIN
+  -- Select policy for clients to view their own files
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'clients_select_own_files' AND tablename = 'files'
+  ) THEN
+    CREATE POLICY "clients_select_own_files" ON public.files
+      FOR SELECT USING (client_id = auth.uid());
+  END IF;
+
   -- Insert policy
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'clients_insert_own_files' AND tablename = 'files'
@@ -30,6 +38,16 @@ BEGIN
   ) THEN
     CREATE POLICY "clients_delete_own_files" ON public.files
       FOR DELETE USING (client_id = auth.uid());
+  END IF;
+
+  -- Admin/Editor select policy for all files
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'admins_editors_select_all_files' AND tablename = 'files'
+  ) THEN
+    CREATE POLICY "admins_editors_select_all_files" ON public.files
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN ('admin','editor'))
+      );
   END IF;
 END $$;
 

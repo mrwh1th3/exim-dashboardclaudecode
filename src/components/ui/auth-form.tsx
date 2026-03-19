@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Github, Twitter } from "lucide-react"
 import { motion } from "framer-motion"
 import { useAuthStore } from "@/stores/auth-store"
 import { toast } from "sonner"
@@ -21,9 +20,7 @@ const AuthForm: React.FC = () => {
         transition={{ duration: 1.25, ease: "easeInOut" }}
         className="relative z-10 mx-auto w-full max-w-xl p-4"
       >
-        <Logo />
         <Header />
-        <SocialButtons />
         <Divider />
         <LoginForm />
         <TermsAndConditions />
@@ -59,68 +56,15 @@ const Button: React.FC<ButtonProps> = ({ children, className, isLoading, ...prop
   </button>
 )
 
-const Logo: React.FC = () => (
-  <div className="mb-6 flex justify-center items-center">
-    <span
-      className="text-foreground"
-      style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', letterSpacing: '0.05em' }}
-    >
-      EXIM
-    </span>
-  </div>
-)
-
 const Header: React.FC = () => (
   <div className="mb-6 text-center">
     <h1
-      className="text-foreground leading-none"
+      className="text-muted-foreground leading-none"
       style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', letterSpacing: '0.02em' }}
     >
       Inicia sesión en tu cuenta
     </h1>
-    <p
-      className="mt-3 text-muted-foreground"
-      style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.05em' }}
-    >
-      ¿No tienes una cuenta?{" "}
-      <a href="#" className="text-[#a5d2c8] hover:underline">
-        Crea una.
-      </a>
-    </p>
   </div>
-)
-
-const SocialButtons: React.FC = () => (
-  <div className="mb-6 space-y-3">
-    <div className="grid grid-cols-2 gap-3">
-      <SocialButton icon={<Twitter size={20} />} />
-      <SocialButton icon={<Github size={20} />} />
-      <SocialButton fullWidth>Iniciar con SSO</SocialButton>
-    </div>
-  </div>
-)
-
-const SocialButton: React.FC<{
-  icon?: React.ReactNode
-  fullWidth?: boolean
-  children?: React.ReactNode
-}> = ({ icon, fullWidth, children }) => (
-  <button
-    className={`btn-sweep flex items-center justify-center gap-2 rounded-[15px]
-    px-4 py-2.5 font-semibold transition-all duration-300
-    hover:scale-105 active:scale-95
-    ${fullWidth ? "col-span-2" : ""}`}
-    style={{
-      background: 'oklch(0.18 0 0)',
-      border: '1px solid oklch(1 0 0 / 10%)',
-      color: 'oklch(0.79 0.008 82)',
-      fontFamily: 'var(--font-mono)',
-      fontSize: '0.8rem',
-    }}
-  >
-    {icon}
-    <span>{children}</span>
-  </button>
 )
 
 const Divider: React.FC = () => (
@@ -130,7 +74,7 @@ const Divider: React.FC = () => (
       className="text-muted-foreground uppercase"
       style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', letterSpacing: '0.1em' }}
     >
-      O
+      Ingresa tus credenciales
     </span>
     <div className="h-[1px] w-full" style={{ background: 'oklch(1 0 0 / 10%)' }} />
   </div>

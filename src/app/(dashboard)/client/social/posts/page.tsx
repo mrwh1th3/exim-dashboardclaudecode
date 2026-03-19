@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { CheckCircle, MessageSquare, AlertTriangle, Megaphone } from 'lucide-react'
 import { EmptyState } from '@/components/shared/empty-state'
+import { ServiceNotAvailable } from '@/components/shared/service-not-available'
+import { useClientServices } from '@/hooks/use-client-services'
 
 const statusBadgeMap: Record<string, { label: string; className: string }> = {
   draft: { label: 'Borrador', className: 'bg-gray-100 text-gray-700' },
@@ -117,8 +119,14 @@ function PostCard({ post, onApprove, onRequestChanges, onEscalate }: {
 
 export default function ClientPostsPage() {
   const { user } = useAuthStore()
+  const { hasSocialMedia, loading: servicesLoading } = useClientServices()
   const [posts, setPosts] = useState<SocialPost[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Show service not available if client doesn't have social media service
+  if (!servicesLoading && !hasSocialMedia) {
+    return <ServiceNotAvailable serviceName="Redes Sociales" />
+  }
   // Change request dialog
   const [changeDialog, setChangeDialog] = useState(false)
   const [changeTarget, setChangeTarget] = useState<SocialPost | null>(null)

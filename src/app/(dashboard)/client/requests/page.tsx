@@ -21,6 +21,13 @@ export default function ClientRequestsPage() {
   const user = useAuthStore((state) => state.user)
   const [requests, setRequests] = useState<any[]>([])
 
+  const isRecentRequest = (createdAt: string) => {
+    const requestDate = new Date(createdAt)
+    const now = new Date()
+    const diffInHours = (now.getTime() - requestDate.getTime()) / (1000 * 60 * 60)
+    return diffInHours <= 24
+  }
+
   useEffect(() => {
     if (!user?.id) return
     const supabase = createClient()
@@ -60,6 +67,7 @@ export default function ClientRequestsPage() {
                   <TableHead>Estado</TableHead>
                   <TableHead>Urgencia</TableHead>
                   <TableHead>Fecha</TableHead>
+                  <TableHead>Reciente</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -89,6 +97,13 @@ export default function ClientRequestsPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(req.created_at).toLocaleDateString('es-MX')}
+                      </TableCell>
+                      <TableCell>
+                        {isRecentRequest(req.created_at) && (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            Nuevo
+                          </Badge>
+                        )}
                       </TableCell>
                     </TableRow>
                   )
