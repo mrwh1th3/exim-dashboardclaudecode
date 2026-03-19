@@ -4,6 +4,22 @@ import { getAdminClient } from '@/lib/supabase/admin'
 import type Stripe from 'stripe'
 
 export async function POST() {
+  // Guard: detect placeholder env vars before any API call
+  const stripeKey = process.env.STRIPE_SECRET_KEY ?? ''
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+  if (!stripeKey || stripeKey.startsWith('REPLACE_WITH')) {
+    return NextResponse.json(
+      { error: 'STRIPE_SECRET_KEY no está configurada en Vercel. Ve a Settings → Environment Variables y agrega tu clave sk_live_ o sk_test_.' },
+      { status: 500 },
+    )
+  }
+  if (!serviceKey || serviceKey.startsWith('REPLACE_WITH')) {
+    return NextResponse.json(
+      { error: 'SUPABASE_SERVICE_ROLE_KEY no está configurada en Vercel. Ve a Settings → Environment Variables y agrega tu service role key de Supabase.' },
+      { status: 500 },
+    )
+  }
+
   try {
     const adminClient = getAdminClient()
 
@@ -137,7 +153,8 @@ export async function POST() {
 
     return NextResponse.json({ plansUpserted, subsUpserted, subsSkipped })
   } catch (err) {
-    console.error('Error syncing Stripe data:', err)
-    return NextResponse.json({ error: 'Error al sincronizar con Stripe' }, { status: 500 })
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('Error syncing Stripe data:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
