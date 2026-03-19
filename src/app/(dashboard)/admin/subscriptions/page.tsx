@@ -213,11 +213,14 @@ export default function SubscriptionsPage() {
               <Button onClick={() => setNewPlanSheetOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />Nuevo Plan
               </Button>
-              <Button variant="outline" asChild>
-                <a href="https://dashboard.stripe.com/products" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />Gestionar en Stripe
-                </a>
-              </Button>
+              <a
+                href="https://dashboard.stripe.com/products"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-[15px] border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+              >
+                <ExternalLink className="h-4 w-4" />Gestionar en Stripe
+              </a>
             </div>
           </div>
 
@@ -231,11 +234,14 @@ export default function SubscriptionsPage() {
             <Card>
               <CardContent className="flex flex-col items-center gap-3 py-14 text-muted-foreground">
                 <p className="text-sm">No hay planes activos en Stripe.</p>
-                <Button variant="outline" size="sm" asChild>
-                  <a href="https://dashboard.stripe.com/products" target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="mr-2 h-4 w-4" />Crear plan en Stripe
-                  </a>
-                </Button>
+                <a
+                  href="https://dashboard.stripe.com/products"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-[15px] border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+                >
+                  <ExternalLink className="h-4 w-4" />Crear plan en Stripe
+                </a>
               </CardContent>
             </Card>
           ) : (
@@ -278,15 +284,14 @@ export default function SubscriptionsPage() {
                           ))}
                         </ul>
                       )}
-                      <Button variant="outline" size="sm" className="w-full" asChild>
-                        <a
-                          href={`https://dashboard.stripe.com/products/${plan.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="mr-1 h-3 w-3" />Ver en Stripe
-                        </a>
-                      </Button>
+                      <a
+                        href={`https://dashboard.stripe.com/products/${plan.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex w-full items-center justify-center gap-1 rounded-[15px] border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+                      >
+                        <ExternalLink className="h-3 w-3" />Ver en Stripe
+                      </a>
                     </CardContent>
                   </Card>
                 )

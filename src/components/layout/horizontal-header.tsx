@@ -34,6 +34,9 @@ import {
 	BarChart3,
 	Globe,
 	FolderOpen,
+	Palette,
+	Wifi,
+	CheckSquare,
 } from 'lucide-react';
 
 type LinkItem = {
@@ -70,8 +73,9 @@ export function HorizontalHeader() {
 
 	const adminSocialNav: LinkItem[] = [
 		{ title: 'Calendario', href: '/admin/social/calendar', icon: <Calendar size={16} />, description: 'Calendario de contenido' },
-		{ title: 'Posts', href: '/admin/social/posts', icon: <Megaphone size={16} />, description: 'Gestionar posts' },
-		{ title: 'Estrategia', href: '/admin/social/strategy', icon: <BarChart3 size={16} />, description: 'Estrategia de redes' },
+		{ title: 'Posts', href: '/admin/social/posts', icon: <Megaphone size={16} />, description: 'Gestionar posts y stories' },
+		{ title: 'Estrategia', href: '/admin/social/strategy', icon: <BarChart3 size={16} />, description: 'Ciclo bimestral de estrategia' },
+		{ title: 'Brand Guideline', href: '/admin/social/brand', icon: <Palette size={16} />, description: 'Identidad visual de cada marca' },
 		{ title: 'Archivos', href: '/admin/social/files', icon: <FolderOpen size={16} />, description: 'Archivos multimedia' },
 	];
 
@@ -83,6 +87,7 @@ export function HorizontalHeader() {
 	const adminSettingsNav: LinkItem[] = [
 		{ title: 'Configuración', href: '/admin/settings', icon: <Settings size={16} />, description: 'Configuración general' },
 		{ title: 'Estados', href: '/admin/settings/statuses', icon: <ClipboardList size={16} />, description: 'Gestionar estados' },
+		{ title: 'Cuentas Sociales', href: '/admin/settings/social-accounts', icon: <Wifi size={16} />, description: 'Conexiones OAuth por cliente' },
 	];
 
 	const clientNav: LinkItem[] = [
@@ -93,8 +98,10 @@ export function HorizontalHeader() {
 	];
 
 	const clientSocialNav: LinkItem[] = [
+		{ title: 'Publicaciones', href: '/client/social/posts', icon: <CheckSquare size={16} />, description: 'Aprobar o pedir cambios' },
 		{ title: 'Calendario', href: '/client/social/calendar', icon: <Calendar size={16} />, description: 'Calendario de contenido' },
 		{ title: 'Estrategia', href: '/client/social/strategy', icon: <Eye size={16} />, description: 'Ver estrategia' },
+		{ title: 'Brand Guideline', href: '/client/social/brand', icon: <Palette size={16} />, description: 'Identidad visual de mi marca' },
 		{ title: 'Archivos', href: '/client/social/files', icon: <FolderOpen size={16} />, description: 'Mis archivos' },
 	];
 

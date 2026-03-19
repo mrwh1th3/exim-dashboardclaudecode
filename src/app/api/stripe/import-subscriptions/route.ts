@@ -82,8 +82,8 @@ export async function POST() {
           plan_id: localPlanId,
           status,
           stripe_subscription_id: sub.id,
-          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+          current_period_start: new Date((sub as any).current_period_start * 1000).toISOString(),
+          current_period_end: new Date((sub as any).current_period_end * 1000).toISOString(),
         },
         { onConflict: 'stripe_subscription_id' }
       )

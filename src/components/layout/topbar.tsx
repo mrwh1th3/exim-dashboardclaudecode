@@ -48,12 +48,16 @@ const roleLabels: Record<UserRole, string> = {
   admin: 'Admin',
   editor: 'Editor',
   client: 'Cliente',
+  client_approver: 'Aprobador',
+  client_viewer: 'Visualizador',
 }
 
 const roleColors: Record<UserRole, string> = {
   admin: 'bg-orange-900/30 text-orange-400',
   editor: 'bg-amber-900/30 text-amber-400',
   client: 'bg-emerald-900/30 text-emerald-400',
+  client_approver: 'bg-blue-900/30 text-blue-400',
+  client_viewer: 'bg-slate-900/30 text-slate-400',
 }
 
 export function Topbar() {

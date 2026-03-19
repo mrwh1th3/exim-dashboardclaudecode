@@ -24,11 +24,12 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 
 const fieldTypeLabels: Record<FieldType, string> = {
-  text: 'Texto', textarea: 'Texto largo', select: 'Selección', checkbox: 'Casillas',
-  file_upload: 'Subir archivo', color_picker: 'Color', date_picker: 'Fecha',
+  text: 'Texto', textarea: 'Texto largo', select: 'Selección', multi_select: 'Selección múltiple',
+  checkbox: 'Casillas', slider: 'Deslizador', file_upload: 'Subir archivo', color_picker: 'Color',
+  font_picker: 'Tipografía', oauth_buttons: 'OAuth', date_picker: 'Fecha',
   rich_text: 'Texto enriquecido', number: 'Número', email: 'Email', url: 'URL', phone: 'Teléfono',
 }
-const allFieldTypes: FieldType[] = ['text', 'textarea', 'select', 'checkbox', 'file_upload', 'color_picker', 'date_picker', 'rich_text', 'number', 'email', 'url', 'phone']
+const allFieldTypes: FieldType[] = ['text', 'textarea', 'select', 'multi_select', 'checkbox', 'slider', 'file_upload', 'color_picker', 'font_picker', 'oauth_buttons', 'date_picker', 'rich_text', 'number', 'email', 'url', 'phone']
 function generateId() { return Math.random().toString(36).substring(2, 12) }
 
 interface ClientOption { id: string; fullName: string; companyName?: string; isActive: boolean }
@@ -406,7 +407,7 @@ export default function OnboardingPage() {
       </Sheet>
 
       {/* Dialog: Asignar Flujo */}
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen} dismissible={false}>
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen} disablePointerDismissal={true}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Asignar Flujo</DialogTitle><DialogDescription>Asigna un flujo de onboarding a un cliente</DialogDescription></DialogHeader>
           <div className="space-y-4">
