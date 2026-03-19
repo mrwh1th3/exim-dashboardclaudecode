@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PWARegister } from "@/components/pwa-register";
+import { NavigationProgress } from "@/components/navigation-progress";
 import "./globals.css";
 
 const inter = Inter({
@@ -55,6 +56,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>
+            <NavigationProgress />
             {children}
             <Toaster richColors position="top-right" />
           </TooltipProvider>
