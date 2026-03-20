@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FileText, Download, Eye, Edit, Save, X, ChevronDown } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { toast } from 'sonner'
 
 export default function AdminRequestsPage() {
   const [requests, setRequests] = useState<RequestWithStatus[]>([])
@@ -31,6 +32,7 @@ export default function AdminRequestsPage() {
   const [loadingAttachments, setLoadingAttachments] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [editingStatus, setEditingStatus] = useState(false)
+  const [popoverOpen, setPopoverOpen] = useState(false)
   const [newStatusId, setNewStatusId] = useState<string>('')
   const [updatingStatus, setUpdatingStatus] = useState(false)
 
@@ -84,6 +86,7 @@ export default function AdminRequestsPage() {
       setSelectedRequest(null)
       setAttachments([])
       setEditingStatus(false)
+      setPopoverOpen(false)
       setNewStatusId('')
     }
   }, [previewOpen])
@@ -127,23 +130,22 @@ export default function AdminRequestsPage() {
       .update({ status_id: newStatusId })
       .eq('id', selectedRequest.id)
     
-    if (!error) {
-      // Update local state
-      setRequests(prev => prev.map(req => 
-        req.id === selectedRequest.id 
-          ? { ...req, statusId: newStatusId, status: statuses.find(s => s.id === newStatusId)! }
+    if (error) {
+      toast.error('Error al actualizar el estado')
+    } else {
+      const updatedStatus = statuses.find(s => s.id === newStatusId)!
+      // Update local state so both table and dialog reflect the change immediately
+      setRequests(prev => prev.map(req =>
+        req.id === selectedRequest.id
+          ? { ...req, statusId: newStatusId, status: updatedStatus }
           : req
       ))
-      
-      setSelectedRequest(prev => prev ? {
-        ...prev,
-        statusId: newStatusId,
-        status: statuses.find(s => s.id === newStatusId)!
-      } : null)
-      
+      setSelectedRequest(prev => prev ? { ...prev, statusId: newStatusId, status: updatedStatus } : null)
       setEditingStatus(false)
+      setPopoverOpen(false)
+      toast.success('Estado actualizado')
     }
-    
+
     setUpdatingStatus(false)
   }
 
@@ -215,6 +217,7 @@ export default function AdminRequestsPage() {
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="product">Producto</SelectItem>
+                  <SelectItem value="page_change">Cambio Web</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -263,13 +266,13 @@ export default function AdminRequestsPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        Producto
+                        {req.type === 'product' ? 'Producto' : 'Cambio Web'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/admin/requests/${req.id}`} className="hover:underline">
-                        {req.productTitle}
-                      </Link>
+                      <span className="hover:underline">
+                        {req.type === 'product' ? req.productTitle : (req.pageSection || req.changeDescription?.substring(0, 50))}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {req.urgency === 'urgent' ? (
@@ -324,7 +327,7 @@ export default function AdminRequestsPage() {
                     <h4 className="font-semibold mb-2">Información General</h4>
                     <div className="space-y-2 text-sm">
                       <p><span className="font-medium">Cliente:</span> {selectedRequest.clientName}</p>
-                      <p><span className="font-medium">Tipo:</span> Producto</p>
+                      <p><span className="font-medium">Tipo:</span> {selectedRequest.type === 'product' ? 'Producto' : 'Cambio Web'}</p>
                       <p><span className="font-medium">Urgencia:</span> {selectedRequest.urgency === 'urgent' ? 'Urgente' : 'Normal'}</p>
                       <p><span className="font-medium">Fecha:</span> {new Date(selectedRequest.createdAt).toLocaleDateString('es-MX')}</p>
                     </div>
@@ -334,13 +337,13 @@ export default function AdminRequestsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold">Estado</h4>
                       {!editingStatus ? (
-                        <Button variant="outline" size="sm" onClick={() => setEditingStatus(true)}>
+                        <Button variant="outline" size="sm" onClick={() => { setEditingStatus(true); setPopoverOpen(true) }}>
                           <Edit className="h-4 w-4 mr-1" />
                           Editar
                         </Button>
                       ) : (
                         <div className="flex items-center space-x-2">
-                          <Popover open={editingStatus} onOpenChange={setEditingStatus}>
+                          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                             <PopoverTrigger>
                               <Button variant="outline" size="sm" className="w-[150px] justify-between">
                                 {statuses.find(s => s.id === newStatusId)?.name || 'Seleccionar...'}
@@ -355,7 +358,7 @@ export default function AdminRequestsPage() {
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
                                     onClick={() => {
                                       setNewStatusId(status.id)
-                                      setEditingStatus(false)
+                                      setPopoverOpen(false)
                                     }}
                                   >
                                     <span>{status.name}</span>
@@ -367,8 +370,8 @@ export default function AdminRequestsPage() {
                               </div>
                             </PopoverContent>
                           </Popover>
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             onClick={updateRequestStatus}
                             disabled={updatingStatus || newStatusId === selectedRequest?.statusId}
                           >
@@ -377,6 +380,7 @@ export default function AdminRequestsPage() {
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => {
                             setEditingStatus(false)
+                            setPopoverOpen(false)
                             setNewStatusId(selectedRequest?.statusId || '')
                           }}>
                             <X className="h-4 w-4" />
@@ -419,6 +423,14 @@ export default function AdminRequestsPage() {
                           </p>
                         </>
                       )}
+                    </div>
+                  ) : selectedRequest.type === 'page_change' ? (
+                    <div className="space-y-2 text-sm">
+                      <p><span className="font-medium">Sección de la página:</span> {selectedRequest.pageSection}</p>
+                      <p><span className="font-medium">Descripción del cambio:</span></p>
+                      <p className="text-muted-foreground bg-muted p-3 rounded whitespace-pre-wrap">
+                        {selectedRequest.changeDescription}
+                      </p>
                     </div>
                   ) : null}
                 </div>

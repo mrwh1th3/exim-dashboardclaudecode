@@ -36,6 +36,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from 'sonner'
 
 const statusConfig: Record<WebPageStatus, { label: string; color: string; progress: number }> = {
   draft: { label: 'Borrador', color: 'bg-gray-500', progress: 10 },
@@ -58,7 +59,7 @@ const getDnsStatus = (domain?: string) => {
   return domain ? 'active' : 'error'
 }
 
-export default function ClientWebPage() {
+export function ClientWebSection() {
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
   const [webPage, setWebPage] = useState<WebPage | null>(null)
@@ -197,8 +198,10 @@ export default function ClientWebPage() {
       
       const statusId = statusData?.id
       
+      let requestId: string
+
       if (requestType === 'product') {
-        const { error } = await supabase.from('requests').insert({
+        const { data: req, error } = await supabase.from('requests').insert({
           client_id: user.id,
           type: 'product',
           status_id: statusId,
@@ -208,25 +211,47 @@ export default function ClientWebPage() {
           product_category: productCategory || null,
           product_description: productDescription,
           implementation_description: implementationDescription || null,
-        })
+        }).select('id').single()
         if (error) throw error
+        requestId = req.id
       } else {
-        const { error } = await supabase.from('requests').insert({
+        const { data: req, error } = await supabase.from('requests').insert({
           client_id: user.id,
           type: 'page_change',
           status_id: statusId,
           urgency: 'normal',
           page_section: pageSection,
           change_description: changeDescription,
-        })
+        }).select('id').single()
         if (error) throw error
+        requestId = req.id
       }
-      
+
+      // Upload attachments to Storage
+      const filesToUpload = requestType === 'product' ? productFiles : changeFiles
+      for (const file of filesToUpload) {
+        const path = `${user.id}/${requestId}/${Date.now()}-${file.name}`
+        const { error: uploadError } = await supabase.storage
+          .from('request-files')
+          .upload(path, file)
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage.from('request-files').getPublicUrl(path)
+          await supabase.from('request_attachments').insert({
+            request_id: requestId,
+            file_url: publicUrl,
+            file_name: file.name,
+            file_type: file.type || null,
+            file_size: file.size,
+          })
+        }
+      }
+
       // Reset form and close dialog
       resetForm()
       setNewRequestOpen(false)
-      
-      // Reload requests
+      toast.success('Solicitud enviada correctamente')
+
+      // Reload requests (only page_change type, matching initial load)
       const { data: requestData } = await supabase
         .from('requests')
         .select(`
@@ -234,6 +259,7 @@ export default function ClientWebPage() {
           request_statuses (name, color)
         `)
         .eq('client_id', user.id)
+        .eq('type', 'page_change')
         .order('created_at', { ascending: false })
       
       setRequests((requestData ?? []).map((r: any) => ({
@@ -250,7 +276,7 @@ export default function ClientWebPage() {
       })))
       
     } catch {
-      // Handle error
+      toast.error('Error al enviar la solicitud. Intenta de nuevo.')
     } finally {
       setSubmitting(false)
     }
@@ -728,3 +754,5 @@ export default function ClientWebPage() {
     </div>
   )
 }
+
+export default ClientWebSection

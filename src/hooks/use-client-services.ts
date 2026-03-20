@@ -12,11 +12,12 @@ export function useClientServices() {
 
   useEffect(() => {
     if (!user?.id) return
+    const userId = user.id
 
     async function checkServices() {
       try {
         const supabase = createClient()
-        
+
         // Get client's active subscription with plan features
         const { data: subscription } = await supabase
           .from('client_subscriptions')
@@ -26,7 +27,7 @@ export function useClientServices() {
               name
             )
           `)
-          .eq('client_id', user.id)
+          .eq('client_id', userId)
           .eq('status', 'active')
           .single()
 

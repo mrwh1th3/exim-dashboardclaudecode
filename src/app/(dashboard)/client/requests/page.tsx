@@ -22,8 +22,9 @@ import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from 'sonner'
 
-export default function ClientRequestsPage() {
+export function ClientRequestsSection() {
   const user = useAuthStore((state) => state.user)
   const [requests, setRequests] = useState<any[]>([])
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null)
@@ -144,8 +145,10 @@ export default function ClientRequestsPage() {
       
       const statusId = statusData?.id
       
+      let requestId: string
+
       if (requestType === 'product') {
-        const { error } = await supabase.from('requests').insert({
+        const { data: req, error } = await supabase.from('requests').insert({
           client_id: user.id,
           type: 'product',
           status_id: statusId,
@@ -155,23 +158,45 @@ export default function ClientRequestsPage() {
           product_category: productCategory || null,
           product_description: productDescription,
           implementation_description: implementationDescription || null,
-        })
+        }).select('id').single()
         if (error) throw error
+        requestId = req.id
       } else {
-        const { error } = await supabase.from('requests').insert({
+        const { data: req, error } = await supabase.from('requests').insert({
           client_id: user.id,
           type: 'page_change',
           status_id: statusId,
           urgency: 'normal',
           page_section: pageSection,
           change_description: changeDescription,
-        })
+        }).select('id').single()
         if (error) throw error
+        requestId = req.id
       }
-      
+
+      // Upload attachments to Storage
+      const filesToUpload = requestType === 'product' ? productFiles : changeFiles
+      for (const file of filesToUpload) {
+        const path = `${user.id}/${requestId}/${Date.now()}-${file.name}`
+        const { error: uploadError } = await supabase.storage
+          .from('request-files')
+          .upload(path, file)
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage.from('request-files').getPublicUrl(path)
+          await supabase.from('request_attachments').insert({
+            request_id: requestId,
+            file_url: publicUrl,
+            file_name: file.name,
+            file_type: file.type || null,
+            file_size: file.size,
+          })
+        }
+      }
+
       // Reset form and close dialog
       resetForm()
       setNewRequestOpen(false)
+      toast.success('Solicitud enviada correctamente')
       
       // Reload requests
       const { data } = await supabase
@@ -182,7 +207,7 @@ export default function ClientRequestsPage() {
       setRequests(data ?? [])
       
     } catch {
-      // Show error - you might want to add toast here
+      toast.error('Error al enviar la solicitud. Intenta de nuevo.')
     } finally {
       setSubmitting(false)
     }
@@ -707,3 +732,5 @@ export default function ClientRequestsPage() {
     </div>
   )
 }
+
+export default ClientRequestsSection

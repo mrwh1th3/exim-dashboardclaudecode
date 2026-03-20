@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 import { Check, Lock, Circle, AlertCircle, FileText } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 
-export default function ClientOnboardingPage() {
+export function ClientOnboardingSection() {
   const { user } = useAuthStore()
   const {
     clientFlows,
@@ -37,6 +37,7 @@ export default function ClientOnboardingPage() {
   const [selectedForm, setSelectedForm] = useState<FormTemplate | null>(null)
   const [formData, setFormData] = useState<Record<string, unknown>>({})
   const [submissions, setSubmissions] = useState<FormSubmission[]>([])
+  const [isReadOnly, setIsReadOnly] = useState(false)
 
   // Load data from Supabase on mount
   useEffect(() => {
@@ -195,16 +196,17 @@ export default function ClientOnboardingPage() {
     setDialogOpen(true)
   }
 
-  const handleOpenForm = (formId: string, stageId?: string) => {
+  const handleOpenForm = (formId: string, stageId?: string, viewOnly = false) => {
     const form = formTemplates.find((f) => f.id === formId)
     const targetStageId = stageId || selectedStage?.id
-    
+
     if (form && clientFlow && targetStageId) {
       const existing = submissions.find(
         (s) => s.clientFlowId === clientFlow.id && s.formTemplateId === formId && s.stageId === targetStageId
       )
       setFormData(existing?.data ?? {})
       setSelectedForm(form)
+      setIsReadOnly(viewOnly)
       if (stageId) {
         setSelectedStage(flowStages.find((s) => s.id === stageId) || null)
       }
@@ -274,6 +276,7 @@ export default function ClientOnboardingPage() {
     setSheetOpen(false)
     setSelectedForm(null)
     setFormData({})
+    setIsReadOnly(false)
   }
 
   const updateField = useCallback((fieldId: string, value: unknown) => {
@@ -282,6 +285,18 @@ export default function ClientOnboardingPage() {
 
   const renderFormField = (field: FormField) => {
     const value = formData[field.id]
+
+    if (isReadOnly) {
+      const display = Array.isArray(value)
+        ? (value as string[]).join(', ')
+        : (value as string) ?? ''
+      return (
+        <div className="text-sm bg-muted/50 border rounded-md px-3 py-2.5 min-h-[2.5rem]">
+          {display || <span className="text-muted-foreground">—</span>}
+        </div>
+      )
+    }
+
     switch (field.type) {
       case 'text':
       case 'email':
@@ -426,25 +441,32 @@ export default function ClientOnboardingPage() {
                       {stage.description && (
                         <p className="text-sm text-muted-foreground">{stage.description}</p>
                       )}
-                      <span
-                        className={`inline-block mt-1 text-xs font-medium ${
-                          status === 'completed'
-                            ? 'text-green-600'
+                      <div className="flex items-center gap-3 mt-1">
+                        <span
+                          className={`text-xs font-medium ${
+                            status === 'completed'
+                              ? 'text-green-600'
+                              : status === 'in_progress'
+                              ? 'text-blue-600'
+                              : status === 'available'
+                              ? 'text-primary'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          {status === 'completed'
+                            ? 'Completado'
                             : status === 'in_progress'
-                            ? 'text-blue-600'
+                            ? 'En progreso'
                             : status === 'available'
-                            ? 'text-primary'
-                            : 'text-muted-foreground'
-                        }`}
-                      >
-                        {status === 'completed'
-                          ? 'Completado'
-                          : status === 'in_progress'
-                          ? 'En progreso'
-                          : status === 'available'
-                          ? 'Disponible'
-                          : 'Bloqueado'}
-                      </span>
+                            ? 'Disponible'
+                            : 'Bloqueado'}
+                        </span>
+                        {status === 'completed' && (
+                          <span className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                            Ver formularios →
+                          </span>
+                        )}
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -495,9 +517,9 @@ export default function ClientOnboardingPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleOpenForm(submission.formTemplateId, submission.stageId)}
+                        onClick={() => handleOpenForm(submission.formTemplateId, submission.stageId, submission.status === 'reviewed')}
                       >
-                        Ver
+                        {submission.status === 'reviewed' ? 'Ver' : 'Editar'}
                       </Button>
                     </div>
                   </div>
@@ -559,9 +581,9 @@ export default function ClientOnboardingPage() {
                           <Button
                             size="sm"
                             variant={submission ? 'outline' : 'default'}
-                            onClick={() => handleOpenForm(formId)}
+                            onClick={() => handleOpenForm(formId, undefined, isReviewed)}
                           >
-                            {submission ? 'Ver / Editar' : 'Completar'}
+                            {isReviewed ? 'Ver' : submission ? 'Editar' : 'Completar'}
                           </Button>
                         </div>
                       )
@@ -588,6 +610,11 @@ export default function ClientOnboardingPage() {
                 {selectedForm.description && (
                   <SheetDescription>{selectedForm.description}</SheetDescription>
                 )}
+                {isReadOnly && (
+                  <p className="text-xs text-muted-foreground bg-muted/60 rounded px-2 py-1 w-fit">
+                    Solo lectura — formulario ya revisado
+                  </p>
+                )}
               </SheetHeader>
               <div className="mt-6 space-y-5">
                 {selectedForm.schema.fields
@@ -596,7 +623,7 @@ export default function ClientOnboardingPage() {
                     <div key={field.id} className="space-y-2">
                       <Label>
                         {field.label}
-                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                        {field.required && !isReadOnly && <span className="text-red-500 ml-1">*</span>}
                       </Label>
                       {renderFormField(field)}
                       {field.helpText && (
@@ -604,15 +631,17 @@ export default function ClientOnboardingPage() {
                       )}
                     </div>
                   ))}
-                <ShimmerButton
-                  onClick={handleSubmitForm}
-                  background="rgba(216,98,38,0.9)"
-                  shimmerColor="#ffffff"
-                  borderRadius="8px"
-                  className="w-full justify-center"
-                >
-                  Enviar formulario
-                </ShimmerButton>
+                {!isReadOnly && (
+                  <ShimmerButton
+                    onClick={handleSubmitForm}
+                    background="rgba(216,98,38,0.9)"
+                    shimmerColor="#ffffff"
+                    borderRadius="8px"
+                    className="w-full justify-center"
+                  >
+                    Enviar formulario
+                  </ShimmerButton>
+                )}
               </div>
             </>
           )}
@@ -621,3 +650,5 @@ export default function ClientOnboardingPage() {
     </div>
   )
 }
+
+export default ClientOnboardingSection

@@ -120,6 +120,24 @@ export function HorizontalHeader() {
 		{ title: 'Archivos', href: '/client/web/files', icon: <FolderOpen size={16} />, description: 'Archivos web' },
 	];
 
+	type SectionItem = { title: string; id: string; icon: React.ReactNode };
+	const clientSections: SectionItem[] = [
+		{ title: 'Inicio', id: 'inicio', icon: <Home size={16} /> },
+		{ title: 'Onboarding', id: 'onboarding', icon: <GitBranch size={16} /> },
+		{ title: 'Solicitudes', id: 'solicitudes', icon: <Send size={16} /> },
+		{ title: 'Suscripción', id: 'suscripcion', icon: <CreditCard size={16} /> },
+		{ title: 'Página Web', id: 'web', icon: <Globe size={16} /> },
+		...(hasSocialMedia ? [{ title: 'Redes Sociales', id: 'social', icon: <Megaphone size={16} /> }] : []),
+	];
+
+	const scrollToSection = (id: string) => {
+		if (pathname === '/client') {
+			document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+		} else {
+			router.push(`/client#${id}`);
+		}
+	};
+
 	const mainNav = isClient ? clientNav : adminNav;
 	const socialNav = isClient && hasSocialMedia ? clientSocialNav : adminSocialNav;
 	const webNav = isClient ? clientWebNav : adminWebNav;

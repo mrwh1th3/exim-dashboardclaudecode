@@ -20,7 +20,7 @@ import { NumberTicker } from '@/components/ui/number-ticker'
 interface Sub { id: string; planId: string; status: string; currentPeriodStart?: string; currentPeriodEnd?: string }
 interface Invoice { id: string; amount: number; currency: string; status: string; periodStart: string; periodEnd: string; paidAt?: string; createdAt: string }
 
-export default function ClientSubscriptionPage() {
+export function ClientSubscriptionSection() {
   const { user } = useAuthStore()
   const router = useRouter()
   const [subscription, setSubscription] = useState<Sub | null>(null)
@@ -270,3 +270,5 @@ export default function ClientSubscriptionPage() {
     </div>
   )
 }
+
+export default ClientSubscriptionSection
