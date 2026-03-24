@@ -29,8 +29,26 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: "/logo-diamond.png",
-    apple: "/logo-diamond.png",
+    icon: [
+      { url: "/logo-diamond.png", sizes: "32x32",  type: "image/png" },
+      { url: "/logo-diamond.png", sizes: "192x192", type: "image/png" },
+      { url: "/logo-diamond.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/logo-diamond.png",
+    apple: [{ url: "/logo-diamond.png", sizes: "180x180", type: "image/png" }],
+  },
+  openGraph: {
+    title: "Exim Dashboard",
+    description: "Dashboard de gestión de clientes - Exim",
+    images: [{ url: "/logo-diamond.png", width: 512, height: 512, alt: "Exim" }],
+    type: "website",
+    locale: "es_MX",
+  },
+  twitter: {
+    card: "summary",
+    title: "Exim Dashboard",
+    description: "Dashboard de gestión de clientes - Exim",
+    images: ["/logo-diamond.png"],
   },
 };
 
