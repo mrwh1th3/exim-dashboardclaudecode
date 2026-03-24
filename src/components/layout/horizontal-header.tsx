@@ -46,6 +46,7 @@ type LinkItem = {
 	href: string;
 	icon: React.ReactNode;
 	description?: string;
+	onClick?: () => void;
 };
 
 export function HorizontalHeader() {
@@ -116,7 +117,7 @@ export function HorizontalHeader() {
 	];
 
 	const clientWebNav: LinkItem[] = [
-		{ title: 'Mi Página', href: '/client/web', icon: <Globe size={16} />, description: 'Mi página web' },
+		{ title: 'Mi Página', href: '/client/web', icon: <Globe size={16} />, description: 'Mi página web', onClick: () => scrollToSection('web') },
 		{ title: 'Archivos', href: '/client/web/files', icon: <FolderOpen size={16} />, description: 'Archivos web' },
 	];
 
@@ -220,15 +221,27 @@ export function HorizontalHeader() {
 									<div className="grid w-[300px] gap-3 p-4">
 										{webNav.map((item) => (
 											<NavigationMenuLink key={item.href} asChild>
-												<Link href={item.href} className={navLinkClass(item.href)}>
-													<div className="flex items-center gap-2 text-sm font-medium leading-none">
-														{item.icon}
-														{item.title}
-													</div>
-													<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-														{item.description}
-													</p>
-												</Link>
+												{item.onClick ? (
+													<button onClick={item.onClick} className={navLinkClass(item.href) + ' w-full text-left'}>
+														<div className="flex items-center gap-2 text-sm font-medium leading-none">
+															{item.icon}
+															{item.title}
+														</div>
+														<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+															{item.description}
+														</p>
+													</button>
+												) : (
+													<Link href={item.href} className={navLinkClass(item.href)}>
+														<div className="flex items-center gap-2 text-sm font-medium leading-none">
+															{item.icon}
+															{item.title}
+														</div>
+														<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+															{item.description}
+														</p>
+													</Link>
+												)}
 											</NavigationMenuLink>
 										))}
 									</div>
@@ -355,7 +368,26 @@ export function HorizontalHeader() {
 									Página Web
 								</h3>
 								<div className="space-y-2">
-									{webNav.map((item) => (
+									{webNav.map((item) => item.onClick ? (
+										<button
+											key={item.href}
+											onClick={() => { item.onClick!(); setMobileMenuOpen(false); }}
+											className={cn(
+												'flex w-full items-center gap-3 rounded-[15px] px-3 py-2 text-sm font-medium transition-colors',
+												isActive(item.href)
+													? 'bg-primary text-primary-foreground'
+													: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+											)}
+										>
+											{item.icon}
+											<div>
+												<div>{item.title}</div>
+												{item.description && (
+													<div className="text-xs text-muted-foreground">{item.description}</div>
+												)}
+											</div>
+										</button>
+									) : (
 										<Link
 											key={item.href}
 											href={item.href}

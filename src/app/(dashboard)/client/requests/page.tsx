@@ -484,13 +484,13 @@ export function ClientRequestsSection() {
                 </div>
 
                 {/* Note for client */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-primary/10 border border-primary/25 rounded-lg p-4">
                   <div className="flex items-start gap-2">
-                    <Globe className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <Globe className="h-5 w-5 text-primary mt-0.5" />
                     <div className="text-sm">
-                      <p className="font-medium text-blue-900 mb-1">Nota importante</p>
-                      <p className="text-blue-700">
-                        Esta es una vista de solo lectura. Para cualquier modificación o consulta adicional, 
+                      <p className="font-medium text-foreground mb-1">Nota importante</p>
+                      <p className="text-muted-foreground">
+                        Esta es una vista de solo lectura. Para cualquier modificación o consulta adicional,
                         por favor contacta al equipo de soporte o crea una nueva solicitud.
                       </p>
                     </div>

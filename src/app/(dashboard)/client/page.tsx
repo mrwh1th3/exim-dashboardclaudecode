@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
-import { StatCard } from '@/components/shared/stat-card'
+import { StatsWidget } from '@/components/ui/stats-widget'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart3, FileText, Calendar, ArrowRight, User, Plus, CreditCard } from 'lucide-react'
+import { ArrowRight, User, Plus, CreditCard } from 'lucide-react'
 import {
   OnboardingDialog,
   createPlaceholderImage,
@@ -138,27 +138,31 @@ export default function ClientPortalPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
+          <StatsWidget
             title="Progreso Onboarding"
-            value={`${onboardingProgress}%`}
-            icon={<BarChart3 className="h-6 w-6" />}
+            value={onboardingProgress}
+            suffix="%"
             description={onboardingText}
+            accentColor="#8B5CF6"
+            chartData={[10, 20, 30, 40, 55, 65, onboardingProgress]}
           />
-          <StatCard
+          <StatsWidget
             title="Solicitudes"
             value={activeRequestsCount}
-            icon={<FileText className="h-6 w-6" />}
+            accentColor="#F59E0B"
+            chartData={[50, 55, 48, 60, 52, 58, 55]}
+            description="Total enviadas"
           />
-          <StatCard
+          <StatsWidget
             title="Plan Actual"
             value={plan?.name ?? 'Sin plan'}
-            icon={<BarChart3 className="h-6 w-6" />}
+            accentColor="#10B981"
             description={plan ? `$${plan.price} ${plan.currency}/mes` : undefined}
           />
-          <StatCard
+          <StatsWidget
             title="Próximo Post"
             value={nextPost?.scheduled_date ?? 'Sin posts'}
-            icon={<Calendar className="h-6 w-6" />}
+            accentColor="#0EA5E9"
             description={nextPost?.title ?? undefined}
           />
         </div>
