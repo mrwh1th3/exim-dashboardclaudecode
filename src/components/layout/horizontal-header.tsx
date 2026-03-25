@@ -223,7 +223,7 @@ export function HorizontalHeader() {
 								</NavigationMenuItem>
 							)}
 
-							{(!isClient || !hasSocialMedia) && (
+							{(!isClient || (isClient && !hasSocialMedia && hasWebPage)) && (
 								<NavigationMenuItem>
 									<NavigationMenuTrigger className="bg-transparent">Página Web</NavigationMenuTrigger>
 									<NavigationMenuContent>
@@ -373,7 +373,7 @@ export function HorizontalHeader() {
 							)}
 
 							{/* Web Navigation */}
-							{(!isClient || !hasSocialMedia) && (
+							{(!isClient || (isClient && !hasSocialMedia && hasWebPage)) && (
 							<div>
 								<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
 									Página Web
