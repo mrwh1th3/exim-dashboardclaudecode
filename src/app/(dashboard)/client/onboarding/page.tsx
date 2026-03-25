@@ -142,6 +142,43 @@ export function ClientOnboardingSection() {
     loadData()
   }, [user?.id])
 
+  // Realtime: sync stage progress when admin updates it
+  useEffect(() => {
+    if (!user?.id) return
+    const supabase = createClient()
+    let clientFlowId: string | null = null
+
+    supabase
+      .from('client_flows')
+      .select('id')
+      .eq('client_id', user.id)
+      .maybeSingle()
+      .then(({ data }: { data: { id: string } | null }) => {
+        if (!data?.id) return
+        clientFlowId = data.id
+
+        const channel = supabase
+          .channel(`stage-progress-${clientFlowId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'client_stage_progress',
+              filter: `client_flow_id=eq.${clientFlowId}`,
+            },
+            (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+              const row = (payload.new ?? payload.old) as any
+              if (!row?.stage_id) return
+              updateStageProgress(clientFlowId!, row.stage_id, row.status)
+            }
+          )
+          .subscribe()
+
+        return () => { supabase.removeChannel(channel) }
+      })
+  }, [user?.id, updateStageProgress])
+
   // Load form submissions from Supabase on mount
   useEffect(() => {
     async function loadSubmissions() {

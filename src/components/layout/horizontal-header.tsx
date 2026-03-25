@@ -215,7 +215,7 @@ async function handleLogout() {
 								</NavigationMenuItem>
 							)}
 
-							{(!isClient || (isClient && !hasSocialMedia && hasWebPage)) && (
+							{(!isClient || (isClient && hasWebPage)) && (
 								<NavigationMenuItem>
 									<NavigationMenuTrigger className="bg-transparent">Página Web</NavigationMenuTrigger>
 									<NavigationMenuContent>
@@ -368,7 +368,7 @@ async function handleLogout() {
 							)}
 
 							{/* Web Navigation */}
-							{(!isClient || (isClient && !hasSocialMedia && hasWebPage)) && (
+							{(!isClient || (isClient && hasWebPage)) && (
 							<div>
 								<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
 									Página Web
