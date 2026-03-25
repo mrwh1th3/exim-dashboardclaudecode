@@ -61,9 +61,12 @@ export function HorizontalHeader() {
 	// Debug: Mostrar qué servicios detecta el hook
 	console.log('Debug Navigation:', { 
 		userName: user?.full_name, 
+		userRole: user?.role,
 		isClient, 
 		hasSocialMedia, 
-		hasWebPage 
+		hasWebPage,
+		shouldShowSocialMenu: isClient && hasSocialMedia,
+		shouldShowWebMenu: !isClient || (isClient && !hasSocialMedia && hasWebPage)
 	});
 
 	async function handleLogout() {
@@ -341,7 +344,11 @@ export function HorizontalHeader() {
 							</div>
 
 							{/* Social Navigation */}
-							{(isClient && hasSocialMedia) && (
+							{(() => {
+								const showSocial = isClient && hasSocialMedia;
+								console.log('Social Menu Condition:', { isClient, hasSocialMedia, result: showSocial });
+								return showSocial;
+							})() && (
 								<div>
 									<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
 										Redes Sociales
