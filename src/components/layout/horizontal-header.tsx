@@ -55,8 +55,16 @@ export function HorizontalHeader() {
 	const router = useRouter();
 	const user = useAuthStore((s) => s.user);
 	const logout = useAuthStore((s) => s.logout);
-	const { hasSocialMedia } = useClientServices();
+	const { hasSocialMedia, hasWebPage } = useClientServices();
 	const isClient = user?.role === 'client';
+
+	// Debug: Mostrar qué servicios detecta el hook
+	console.log('Debug Navigation:', { 
+		userName: user?.full_name, 
+		isClient, 
+		hasSocialMedia, 
+		hasWebPage 
+	});
 
 	async function handleLogout() {
 		await logout();
