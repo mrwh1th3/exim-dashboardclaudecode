@@ -9,11 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { Check, MessageCircle, AlertCircle, ArrowRightLeft, XCircle } from 'lucide-react'
+import { Check, MessageCircle, AlertCircle, ExternalLink } from 'lucide-react'
 import { BorderBeam } from '@/components/ui/border-beam'
 import { NumberTicker } from '@/components/ui/number-ticker'
 
@@ -25,11 +22,7 @@ export function ClientSubscriptionSection() {
   const router = useRouter()
   const [subscription, setSubscription] = useState<Sub | null>(null)
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null)
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [changePlanOpen, setChangePlanOpen] = useState(false)
-  const [cancelOpen, setCancelOpen] = useState(false)
-  const [cancelReason, setCancelReason] = useState('')
 
   useEffect(() => {
     if (!user?.id) return
@@ -46,7 +39,6 @@ export function ClientSubscriptionSection() {
         features: p.features ?? [], isActive: p.is_active,
         stripePriceId: p.stripe_price_id ?? undefined, createdAt: p.created_at,
       }))
-      setPlans(mappedPlans)
       if (subData) {
         const sub: Sub = {
           id: subData.id, planId: subData.plan_id, status: subData.status,
@@ -88,21 +80,7 @@ export function ClientSubscriptionSection() {
     ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
     : '-'
 
-  const handleChangePlan = async (planId: string) => {
-    const selectedPlan = plans.find((p) => p.id === planId)
-    if (!selectedPlan?.stripePriceId) { toast.error('Este plan no está disponible'); return }
-    const res = await fetch('/api/stripe/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ planId, clientId: user?.id }),
-    })
-    const { url } = await res.json()
-    if (url) router.push(url)
-    else toast.error('Error al crear sesión de pago')
-    setChangePlanOpen(false)
-  }
-
-  const handleCancelSubscription = async () => {
+  const handleManageSubscription = async () => {
     const res = await fetch('/api/stripe/portal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -110,9 +88,7 @@ export function ClientSubscriptionSection() {
     })
     const { url } = await res.json()
     if (url) router.push(url)
-    else toast.success('Solicitud de cancelación enviada. Nos pondremos en contacto contigo.')
-    setCancelOpen(false)
-    setCancelReason('')
+    else toast.error('No se pudo abrir el portal de Stripe. Contacta a soporte.')
   }
 
   return (
@@ -199,73 +175,13 @@ export function ClientSubscriptionSection() {
 
       <div>
         <h3 className="text-lg font-semibold mb-3">Gestionar Suscripción</h3>
-        <div className="flex flex-wrap gap-3">
-          <Dialog open={changePlanOpen} onOpenChange={setChangePlanOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline"><ArrowRightLeft className="mr-2 h-4 w-4" />Cambiar Plan</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Cambiar Plan</DialogTitle>
-                <DialogDescription>Selecciona el plan al que deseas cambiar</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 md:grid-cols-2 py-4">
-                {plans.map((p) => (
-                  <Card key={p.id} className={p.id === plan.id ? 'border-primary ring-2 ring-primary/20' : ''}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">{p.name}</CardTitle>
-                        {p.id === plan.id && <Badge variant="default" className="text-xs">Plan actual</Badge>}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="mb-3">
-                        <span className="text-2xl font-bold">${p.price.toLocaleString()}</span>
-                        <span className="text-muted-foreground text-sm ml-1">MXN/mes</span>
-                      </div>
-                      <ul className="space-y-1 mb-4">
-                        {p.features.slice(0, 4).map((feature, i) => (
-                          <li key={i} className="flex items-start gap-1.5 text-xs">
-                            <Check className="h-3 w-3 text-green-500 mt-0.5 shrink-0" /><span>{feature}</span>
-                          </li>
-                        ))}
-                        {p.features.length > 4 && <li className="text-xs text-muted-foreground">+{p.features.length - 4} más...</li>}
-                      </ul>
-                      <Button variant={p.id === plan.id ? 'secondary' : 'default'} size="sm" className="w-full" disabled={p.id === plan.id} onClick={() => handleChangePlan(p.id)}>
-                        {p.id === plan.id ? 'Plan actual' : 'Seleccionar'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-            <DialogTrigger asChild>
-              <Button variant="destructive"><XCircle className="mr-2 h-4 w-4" />Cancelar Suscripción</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Cancelar Suscripción</DialogTitle>
-                <DialogDescription>Esta acción cancelará tu suscripción al final del período actual.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
-                  <strong>Advertencia:</strong> Al cancelar, perderás acceso a todas las funcionalidades al finalizar el período de facturación actual ({periodEnd}).
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cancel-reason">Motivo de cancelación (opcional)</Label>
-                  <Textarea id="cancel-reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Cuéntanos por qué deseas cancelar..." rows={4} />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCancelOpen(false)}>Mantener suscripción</Button>
-                <Button variant="destructive" onClick={handleCancelSubscription}>Confirmar cancelación</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <p className="text-sm text-muted-foreground mb-3">
+          Para cambiar o cancelar tu plan, accede al portal de Stripe donde podrás gestionar todos los aspectos de tu suscripción.
+        </p>
+        <Button onClick={handleManageSubscription}>
+          <ExternalLink className="mr-2 h-4 w-4" />
+          Gestionar Suscripción
+        </Button>
       </div>
     </div>
   )

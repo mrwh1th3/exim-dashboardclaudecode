@@ -5,10 +5,9 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import {
   Users, MessageSquare, CreditCard, Calendar,
-  TrendingUp, ArrowUpRight, Activity, Clock,
-  CheckCircle2, AlertCircle, Zap
+  Clock, CheckCircle2, AlertCircle, Zap
 } from 'lucide-react'
-import { NumberTicker } from '@/components/ui/number-ticker'
+import { StatsWidget } from '@/components/ui/stats-widget'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -38,89 +37,6 @@ interface ActivityItem {
   type: 'request' | 'subscription' | 'post' | 'client'
 }
 
-// ─── Metric Card ──────────────────────────────────────────────────────────────
-function MetricCard({
-  title, value, icon, accentColor, description, trend, delay = 0,
-}: {
-  title: string
-  value: number
-  icon: React.ReactNode
-  accentColor: string
-  description?: string
-  trend?: number
-  delay?: number
-}) {
-  return (
-    <div
-      className="animate-fade-up relative overflow-hidden rounded-xl p-6 transition-all duration-300 hover:-translate-y-1"
-      style={{
-        animationDelay: `${delay}ms`,
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
-        boxShadow: '0 1px 3px oklch(0 0 0 / 15%)',
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = `${accentColor}40`
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow = `0 0 40px ${accentColor}12, 0 4px 20px oklch(0 0 0 / 15%)`
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px oklch(0 0 0 / 15%)'
-      }}
-    >
-      {/* Left accent bar */}
-      <div
-        className="absolute inset-y-0 left-0 w-[3px]"
-        style={{ background: accentColor, opacity: 0.9 }}
-      />
-
-      <div className="flex items-start justify-between pl-2">
-        <div className="space-y-3">
-          <p
-            className="text-muted-foreground uppercase tracking-widest"
-            style={{ fontSize: '0.6rem', letterSpacing: '0.2em', fontFamily: 'var(--font-mono)' }}
-          >
-            {title}
-          </p>
-
-          {/* Big number */}
-          <p
-            className="text-foreground leading-none"
-            style={{ fontFamily: 'var(--font-display)', fontSize: '3.5rem' }}
-          >
-            <NumberTicker value={value} />
-          </p>
-
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
-
-          {trend !== undefined && (
-            <span
-              className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-semibold"
-              style={{
-                background: `${accentColor}15`,
-                color: accentColor,
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.6rem',
-              }}
-            >
-              <ArrowUpRight className={cn('h-3 w-3', trend < 0 && 'rotate-180')} />
-              +{Math.abs(trend)}% este mes
-            </span>
-          )}
-        </div>
-
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-lg shrink-0"
-          style={{ background: `${accentColor}15`, color: accentColor }}
-        >
-          {icon}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 function Avatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'md' }) {
@@ -319,10 +235,26 @@ export default function AdminDashboardPage() {
   }, [])
 
   const metrics = [
-    { title: 'Clientes Activos',   value: stats.clients,             icon: <Users className="h-4.5 w-4.5" />,       accentColor: '#8B5CF6', description: 'Clientes registrados',   trend: 12, delay: 0 },
-    { title: 'Solicitudes',        value: stats.pendingRequests,     icon: <MessageSquare className="h-4.5 w-4.5" />,accentColor: '#F59E0B', description: 'Total en sistema',                 delay: 100 },
-    { title: 'Suscripciones',      value: stats.activeSubscriptions, icon: <CreditCard className="h-4.5 w-4.5" />,  accentColor: '#10B981', description: 'Planes activos',        trend: 8,  delay: 200 },
-    { title: 'Posts Programados',  value: stats.scheduledPosts,      icon: <Calendar className="h-4.5 w-4.5" />,    accentColor: '#0EA5E9', description: 'Listos para publicar',             delay: 300 },
+    {
+      title: 'Clientes Activos', value: stats.clients,
+      accentColor: '#8B5CF6', description: 'Clientes registrados', change: 12,
+      chartData: [30, 38, 45, 52, 58, 65, 72], className: 'animate-fade-up',
+    },
+    {
+      title: 'Solicitudes', value: stats.pendingRequests,
+      accentColor: '#F59E0B', description: 'Total en sistema',
+      chartData: [50, 55, 48, 60, 52, 58, 55], className: 'animate-fade-up anim-delay-100',
+    },
+    {
+      title: 'Suscripciones', value: stats.activeSubscriptions,
+      accentColor: '#10B981', description: 'Planes activos', change: 8,
+      chartData: [35, 42, 48, 55, 60, 65, 70], className: 'animate-fade-up anim-delay-200',
+    },
+    {
+      title: 'Posts Programados', value: stats.scheduledPosts,
+      accentColor: '#0EA5E9', description: 'Listos para publicar',
+      chartData: [40, 60, 35, 70, 45, 65, 50], className: 'animate-fade-up anim-delay-300',
+    },
   ]
 
   const timeAgo = (dateStr: string) => {
@@ -387,7 +319,7 @@ export default function AdminDashboardPage() {
       {/* ── KPI Grid ───────────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((m) => (
-          <MetricCard key={m.title} {...m} />
+          <StatsWidget key={m.title} {...m} />
         ))}
       </div>
 
