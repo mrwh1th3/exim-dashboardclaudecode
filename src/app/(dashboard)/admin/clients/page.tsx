@@ -52,7 +52,7 @@ export default function ClientsListPage() {
         supabase.from('client_flows').select('client_id, flow_template_id'),
         supabase.from('flow_templates').select('id, name, type'),
         supabase.from('client_subscriptions').select('client_id, plan_id'),
-        supabase.from('subscription_plans').select('id, title, status').eq('status', 'active'),
+        supabase.from('subscription_plans').select('id, name, status').eq('status', 'active'),
       ])
 
       setFlowTemplates(templates ?? [])
@@ -308,7 +308,7 @@ export default function ClientsListPage() {
                   <SelectContent>
                     <SelectItem value="none">Sin plan de Suscripción</SelectItem>
                     {subscriptionPlans.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
