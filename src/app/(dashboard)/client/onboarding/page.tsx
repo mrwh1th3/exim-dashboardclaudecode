@@ -13,11 +13,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Check, Lock, Circle, AlertCircle, FileText } from 'lucide-react'
-import { ShimmerButton } from '@/components/ui/shimmer-button'
 
 export function ClientOnboardingSection() {
   const { user } = useAuthStore()
@@ -97,12 +95,31 @@ export function ClientOnboardingSection() {
           
           // Update flow templates
           useFlowsStore.setState({
-            flowTemplates: [flowTemplateData]
+            flowTemplates: [{
+              id: flowTemplateData.id,
+              name: flowTemplateData.name,
+              description: flowTemplateData.description ?? '',
+              type: flowTemplateData.type,
+              isActive: flowTemplateData.is_active,
+              createdBy: flowTemplateData.created_by,
+              createdAt: flowTemplateData.created_at,
+              updatedAt: flowTemplateData.updated_at,
+            }]
           })
-          
-          // Update stages
+
+          // Update stages — map snake_case DB columns to camelCase TypeScript fields
           useFlowsStore.setState({
-            flowStages: stagesData || []
+            flowStages: (stagesData || []).map((s: any) => ({
+              id: s.id,
+              flowTemplateId: s.flow_template_id,
+              name: s.name,
+              description: s.description ?? '',
+              orderIndex: s.order_index,
+              popupContent: s.popup_content ?? undefined,
+              dependsOnStageId: s.depends_on_stage_id ?? undefined,
+              formIds: s.form_ids ?? [],
+              createdAt: s.created_at,
+            }))
           })
           
           // Update stage progress
@@ -372,7 +389,7 @@ export function ClientOnboardingSection() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">{flowTemplate.name}</h2>
         {flowTemplate.description && (
@@ -495,11 +512,11 @@ export function ClientOnboardingSection() {
                 const isReviewed = submission.status === 'reviewed'
                 
                 return (
-                  <div key={submission.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className={`h-5 w-5 ${isReviewed ? 'text-blue-500' : 'text-green-500'}`} />
-                      <div>
-                        <p className="text-sm font-medium">{form?.name || 'Formulario'}</p>
+                  <div key={submission.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <FileText className={`h-5 w-5 shrink-0 ${isReviewed ? 'text-blue-500' : 'text-green-500'}`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{form?.name || 'Formulario'}</p>
                         <p className="text-xs text-muted-foreground">
                           {stage?.name || 'Etapa'} • Enviado: {new Date(submission.submittedAt!).toLocaleDateString('es-MX')}
                         </p>
@@ -510,7 +527,7 @@ export function ClientOnboardingSection() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Badge variant={isReviewed ? "default" : "secondary"} className={isReviewed ? "bg-blue-100 text-blue-700" : ""}>
                         {isReviewed ? 'Revisado' : 'Pendiente'}
                       </Badge>
@@ -600,30 +617,35 @@ export function ClientOnboardingSection() {
         </DialogContent>
       </Dialog>
 
-      {/* Form Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-lg overflow-y-auto">
+      {/* Form Dialog */}
+      <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
           {selectedForm && (
             <>
-              <SheetHeader>
-                <SheetTitle>{selectedForm.name}</SheetTitle>
+              {/* Sticky header */}
+              <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+                <DialogTitle className="text-lg leading-tight">{selectedForm.name}</DialogTitle>
                 {selectedForm.description && (
-                  <SheetDescription>{selectedForm.description}</SheetDescription>
+                  <DialogDescription className="mt-1">{selectedForm.description}</DialogDescription>
                 )}
                 {isReadOnly && (
-                  <p className="text-xs text-muted-foreground bg-muted/60 rounded px-2 py-1 w-fit">
+                  <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1 w-fit mt-2 inline-block">
                     Solo lectura — formulario ya revisado
-                  </p>
+                  </span>
                 )}
-              </SheetHeader>
-              <div className="mt-6 space-y-5">
+              </DialogHeader>
+
+              {/* Scrollable content */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 {selectedForm.schema.fields
                   .sort((a, b) => a.order - b.order)
                   .map((field) => (
                     <div key={field.id} className="space-y-2">
                       <Label>
                         {field.label}
-                        {field.required && !isReadOnly && <span className="text-red-500 ml-1">*</span>}
+                        {field.required && !isReadOnly && (
+                          <span className="text-destructive ml-1">*</span>
+                        )}
                       </Label>
                       {renderFormField(field)}
                       {field.helpText && (
@@ -631,22 +653,24 @@ export function ClientOnboardingSection() {
                       )}
                     </div>
                   ))}
-                {!isReadOnly && (
-                  <ShimmerButton
-                    onClick={handleSubmitForm}
-                    background="rgba(216,98,38,0.9)"
-                    shimmerColor="#ffffff"
-                    borderRadius="8px"
-                    className="w-full justify-center"
-                  >
-                    Enviar formulario
-                  </ShimmerButton>
-                )}
               </div>
+
+              {/* Sticky footer */}
+              {!isReadOnly && (
+                <div className="px-6 py-4 border-t bg-background shrink-0">
+                  <Button
+                    onClick={handleSubmitForm}
+                    className="w-full h-11 text-sm font-semibold gap-2"
+                  >
+                    <Check className="h-4 w-4" />
+                    Enviar formulario
+                  </Button>
+                </div>
+              )}
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

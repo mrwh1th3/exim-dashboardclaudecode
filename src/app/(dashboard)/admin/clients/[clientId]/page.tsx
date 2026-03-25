@@ -4,6 +4,7 @@ import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, Circle, Clock, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface ClientDetailPageProps {
   params: Promise<{ clientId: string }>
@@ -112,6 +120,29 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     }
   }
 
+  async function handleUpdateStageStatus(stageId: string, newStatus: string) {
+    if (!clientFlow) return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('client_stage_progress')
+      .upsert(
+        { client_flow_id: clientFlow.id, stage_id: stageId, status: newStatus },
+        { onConflict: 'client_flow_id,stage_id' }
+      )
+    if (error) {
+      toast.error('Error al actualizar la etapa')
+      return
+    }
+    setStageProgress((prev) => {
+      const existing = prev.find((sp) => sp.stage_id === stageId)
+      if (existing) {
+        return prev.map((sp) => sp.stage_id === stageId ? { ...sp, status: newStatus } : sp)
+      }
+      return [...prev, { stage_id: stageId, client_flow_id: clientFlow.id, status: newStatus }]
+    })
+    toast.success('Etapa actualizada')
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -181,25 +212,39 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             </CardHeader>
             <CardContent>
               {flowStages.length > 0 ? (
-                <div className="space-y-4">
-                  {flowStages.map((stage, index) => (
-                    <div key={stage.id} className="flex items-start gap-4 rounded-lg border p-4">
-                      <div className="mt-0.5">{getStageStatusIcon(stage.id)}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold">
-                            Etapa {index + 1}: {stage.name}
-                          </h3>
-                          <span className="text-sm text-muted-foreground">
-                            {getStageStatusLabel(stage.id)}
-                          </span>
+                <div className="space-y-3">
+                  {flowStages.map((stage, index) => {
+                    const currentStatus = stageProgress.find((sp) => sp.stage_id === stage.id)?.status ?? 'available'
+                    return (
+                      <div key={stage.id} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border p-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className="mt-0.5 shrink-0">{getStageStatusIcon(stage.id)}</div>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-sm">
+                              Etapa {index + 1}: {stage.name}
+                            </h3>
+                            {stage.description && (
+                              <p className="text-sm text-muted-foreground mt-0.5">{stage.description}</p>
+                            )}
+                          </div>
                         </div>
-                        {stage.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{stage.description}</p>
-                        )}
+                        <Select
+                          value={currentStatus}
+                          onValueChange={(v) => handleUpdateStageStatus(stage.id, v)}
+                          disabled={!clientFlow}
+                        >
+                          <SelectTrigger className="w-full sm:w-36 shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="available">Disponible</SelectItem>
+                            <SelectItem value="in_progress">En progreso</SelectItem>
+                            <SelectItem value="completed">Completado</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <p className="text-muted-foreground">No hay flujo de onboarding asignado a este cliente.</p>
@@ -215,6 +260,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             </CardHeader>
             <CardContent>
               {requests.length > 0 ? (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -258,6 +304,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <p className="text-muted-foreground">Este cliente no tiene solicitudes.</p>
               )}

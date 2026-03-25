@@ -123,16 +123,16 @@ function SortableStageCard({
     <div ref={setNodeRef} style={style}>
       <Card className={isDragging ? 'ring-2 ring-primary' : ''}>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               {...attributes}
               {...listeners}
-              className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
+              className="cursor-grab touch-none text-muted-foreground hover:text-foreground shrink-0"
               tabIndex={-1}
             >
               <GripVertical className="h-5 w-5" />
             </button>
-            <div className="flex-1">
+            <div className="flex-1 min-w-[120px]">
               <Input
                 value={stage.name}
                 onChange={(e) => onUpdate({ name: e.target.value })}
@@ -564,14 +564,14 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-4">
         <Link href="/admin/onboarding">
-          <Button variant="ghost" size="icon-sm" className="mt-1">
+          <Button variant="ghost" size="icon-sm" className="mt-1 shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-[200px] space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
               value={flow.name}
               onChange={(e) => updateFlow({ name: e.target.value })}
@@ -603,7 +603,7 @@ export default function FlowEditorPage({ params }: FlowEditorPageProps) {
             placeholder="Descripción del flujo..."
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
           <div className="flex items-center gap-3">
             <Label className="text-sm">Activo</Label>
             <Switch

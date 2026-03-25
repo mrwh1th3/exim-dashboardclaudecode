@@ -58,6 +58,8 @@ export default function ClientPortalPage() {
   const [nextPost, setNextPost] = useState<{ scheduled_date: string; title?: string } | null>(null)
   const [onboardingProgress, setOnboardingProgress] = useState(0)
   const [onboardingText, setOnboardingText] = useState('Sin datos')
+  const [welcomeChecked, setWelcomeChecked] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
 
   useEffect(() => {
     if (!user?.id) return
@@ -112,6 +114,17 @@ export default function ClientPortalPage() {
     })()
   }, [user?.id])
 
+  // Auto-open welcome dialog on first visit per user
+  useEffect(() => {
+    if (!user?.id) return
+    const key = `welcome_seen_${user.id}`
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, '1')
+      setShowWelcome(true)
+    }
+    setWelcomeChecked(true)
+  }, [user?.id])
+
   // Handle hash navigation on page load (e.g. /client#solicitudes)
   useEffect(() => {
     const hash = window.location.hash.slice(1)
@@ -134,7 +147,9 @@ export default function ClientPortalPage() {
             </h1>
             <p className="text-muted-foreground">Resumen de tu cuenta y servicios</p>
           </div>
-          <OnboardingDialog defaultOpen={false} slides={ONBOARDING_SLIDES} />
+          {welcomeChecked && (
+            <OnboardingDialog defaultOpen={showWelcome} slides={ONBOARDING_SLIDES} />
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
