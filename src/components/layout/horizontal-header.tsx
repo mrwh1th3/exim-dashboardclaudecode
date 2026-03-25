@@ -58,18 +58,7 @@ export function HorizontalHeader() {
 	const { hasSocialMedia, hasWebPage } = useClientServices();
 	const isClient = user?.role === 'client';
 
-	// Debug: Mostrar qué servicios detecta el hook
-	console.log('Debug Navigation:', { 
-		userName: user?.full_name, 
-		userRole: user?.role,
-		isClient, 
-		hasSocialMedia, 
-		hasWebPage,
-		shouldShowSocialMenu: isClient && hasSocialMedia,
-		shouldShowWebMenu: !isClient || (isClient && !hasSocialMedia && hasWebPage)
-	});
-
-	async function handleLogout() {
+async function handleLogout() {
 		await logout();
 		router.push('/login');
 	}
@@ -346,7 +335,6 @@ export function HorizontalHeader() {
 							{/* Social Navigation */}
 							{(() => {
 								const showSocial = isClient && hasSocialMedia;
-								console.log('Social Menu Condition:', { isClient, hasSocialMedia, result: showSocial });
 								return showSocial;
 							})() && (
 								<div>
