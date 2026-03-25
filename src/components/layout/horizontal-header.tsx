@@ -192,7 +192,7 @@ export function HorizontalHeader() {
 								</NavigationMenuContent>
 							</NavigationMenuItem>
 
-							{(!isClient || hasSocialMedia) && (
+							{(isClient ? hasSocialMedia : true) && (
 								<NavigationMenuItem>
 									<NavigationMenuTrigger className="bg-transparent">Redes Sociales</NavigationMenuTrigger>
 									<NavigationMenuContent>
@@ -215,38 +215,40 @@ export function HorizontalHeader() {
 								</NavigationMenuItem>
 							)}
 
-							<NavigationMenuItem>
-								<NavigationMenuTrigger className="bg-transparent">Página Web</NavigationMenuTrigger>
-								<NavigationMenuContent>
-									<div className="grid w-[300px] gap-3 p-4">
-										{webNav.map((item) => (
-											<NavigationMenuLink key={item.href} asChild>
-												{item.onClick ? (
-													<button onClick={item.onClick} className={navLinkClass(item.href) + ' w-full text-left'}>
-														<div className="flex items-center gap-2 text-sm font-medium leading-none">
-															{item.icon}
-															{item.title}
-														</div>
-														<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-															{item.description}
-														</p>
-													</button>
-												) : (
-													<Link href={item.href} className={navLinkClass(item.href)}>
-														<div className="flex items-center gap-2 text-sm font-medium leading-none">
-															{item.icon}
-															{item.title}
-														</div>
-														<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-															{item.description}
-														</p>
-													</Link>
-												)}
-											</NavigationMenuLink>
-										))}
-									</div>
-								</NavigationMenuContent>
-							</NavigationMenuItem>
+							{(!isClient || !hasSocialMedia) && (
+								<NavigationMenuItem>
+									<NavigationMenuTrigger className="bg-transparent">Página Web</NavigationMenuTrigger>
+									<NavigationMenuContent>
+										<div className="grid w-[300px] gap-3 p-4">
+											{webNav.map((item) => (
+												<NavigationMenuLink key={item.href} asChild>
+													{item.onClick ? (
+														<button onClick={item.onClick} className={navLinkClass(item.href) + ' w-full text-left'}>
+															<div className="flex items-center gap-2 text-sm font-medium leading-none">
+																{item.icon}
+																{item.title}
+															</div>
+															<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+																{item.description}
+															</p>
+														</button>
+													) : (
+														<Link href={item.href} className={navLinkClass(item.href)}>
+															<div className="flex items-center gap-2 text-sm font-medium leading-none">
+																{item.icon}
+																{item.title}
+															</div>
+															<p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+																{item.description}
+															</p>
+														</Link>
+													)}
+												</NavigationMenuLink>
+											))}
+										</div>
+									</NavigationMenuContent>
+								</NavigationMenuItem>
+							)}
 
 							{!isClient && settingsNav.length > 0 && (
 								<NavigationMenuItem>
@@ -331,7 +333,7 @@ export function HorizontalHeader() {
 							</div>
 
 							{/* Social Navigation */}
-							{(!isClient || hasSocialMedia) && (
+							{(isClient ? hasSocialMedia : true) && (
 								<div>
 									<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
 										Redes Sociales
@@ -363,6 +365,7 @@ export function HorizontalHeader() {
 							)}
 
 							{/* Web Navigation */}
+							{(!isClient || !hasSocialMedia) && (
 							<div>
 								<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
 									Página Web
@@ -410,6 +413,7 @@ export function HorizontalHeader() {
 									))}
 								</div>
 							</div>
+						)}
 
 							{/* Settings Navigation */}
 							{!isClient && settingsNav.length > 0 && (
