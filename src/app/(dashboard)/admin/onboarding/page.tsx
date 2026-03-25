@@ -64,6 +64,9 @@ export default function OnboardingPage() {
   const [newFlowType, setNewFlowType] = useState<FlowType>('web')
 
   const [formDialogOpen, setFormDialogOpen] = useState(false)
+  const [deleteFormDialogOpen, setDeleteFormDialogOpen] = useState(false)
+  const [formToDelete, setFormToDelete] = useState<string | null>(null)
+  const [editingFormId, setEditingFormId] = useState<string | null>(null)
   const [formSheetOpen, setFormSheetOpen] = useState(false)
   const [selectedForm, setSelectedForm] = useState<FormTemplate | null>(null)
   const [newFormName, setNewFormName] = useState('')
@@ -134,15 +137,52 @@ export default function OnboardingPage() {
     if (newFormFields.some((f) => !f.label.trim())) { toast.error('Todos los campos deben tener un label'); return }
     const fields: FormField[] = newFormFields.map((f, index) => ({
       id: f.id, type: f.type, label: f.label.trim(), required: f.required, order: index,
-      ...(f.type === 'select' || f.type === 'checkbox' ? { options: f.options.split('\n').map((o) => o.trim()).filter(Boolean) } : {}),
+      ...(f.type === 'select' || f.type === 'checkbox' ? { options: typeof f.options === 'string' ? f.options.split('\n').map((o) => o.trim()).filter(Boolean) : f.options } : {}),
     }))
     const supabase = createClient()
-    const { data, error } = await supabase.from('form_templates').insert({ name: newFormName.trim(), description: newFormDescription.trim() || null, schema: { fields } }).select().single()
-    if (error) { toast.error('Error al crear el formulario'); return }
-    setForms((prev) => [{ id: data.id, name: data.name, description: data.description ?? undefined, schema: data.schema, createdBy: '', createdAt: data.created_at, updatedAt: data.updated_at }, ...prev])
+
+    if (editingFormId) {
+      const { data, error } = await supabase.from('form_templates').update({ name: newFormName.trim(), description: newFormDescription.trim() || null, schema: { fields }, updated_at: new Date().toISOString() }).eq('id', editingFormId).select().single()
+      if (error) { toast.error('Error al actualizar el formulario'); return }
+      setForms((prev) => prev.map(f => f.id === editingFormId ? { id: data.id, name: data.name, description: data.description ?? undefined, schema: data.schema, createdBy: '', createdAt: data.created_at, updatedAt: data.updated_at } : f))
+      toast.success('Formulario actualizado exitosamente')
+    } else {
+      const { data, error } = await supabase.from('form_templates').insert({ name: newFormName.trim(), description: newFormDescription.trim() || null, schema: { fields } }).select().single()
+      if (error) { toast.error('Error al crear el formulario'); return }
+      setForms((prev) => [{ id: data.id, name: data.name, description: data.description ?? undefined, schema: data.schema, createdBy: '', createdAt: data.created_at, updatedAt: data.updated_at }, ...prev])
+      toast.success('Formulario creado exitosamente')
+    }
+
     setNewFormName(''); setNewFormDescription(''); setNewFormFields([])
-    setFormDialogOpen(false)
-    toast.success('Formulario creado exitosamente')
+    setEditingFormId(null); setFormDialogOpen(false)
+  }
+
+  async function handleDeleteForm() {
+    if (!formToDelete) return
+    const supabase = createClient()
+    const { error } = await supabase.from('form_templates').delete().eq('id', formToDelete)
+    if (error) { toast.error('Error al eliminar'); return }
+    setForms((prev) => prev.filter((f) => f.id !== formToDelete))
+    setFormToDelete(null); setDeleteFormDialogOpen(false)
+    toast.success('Formulario eliminado')
+  }
+
+  function openEditForm(form: FormTemplate, e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditingFormId(form.id)
+    setNewFormName(form.name)
+    setNewFormDescription(form.description || '')
+    setNewFormFields(form.schema.fields.map(f => ({
+      ...f,
+      options: Array.isArray(f.options) ? f.options.join('\n') : (f.options || '')
+    })) as any)
+    setFormDialogOpen(true)
+  }
+
+  function openNewFormDialog() {
+    setEditingFormId(null)
+    setNewFormName(''); setNewFormDescription(''); setNewFormFields([])
+    setFormDialogOpen(true)
   }
 
   async function handleAssignFlow() {
@@ -237,17 +277,29 @@ export default function OnboardingPage() {
         <TabsContent value="formularios">
           <div className="space-y-4">
             <div className="flex justify-end">
-              <Button onClick={() => setFormDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Nuevo Formulario</Button>
+              <Button onClick={openNewFormDialog}><Plus className="mr-2 h-4 w-4" />Nuevo Formulario</Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {forms.map((form) => (
                 <Card key={form.id} className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => { setSelectedForm(form); setFormSheetOpen(true) }}>
-                  <CardHeader className="pb-2"><CardTitle className="text-base">{form.name}</CardTitle></CardHeader>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-base truncate pr-2">{form.name}</CardTitle>
+                      <Button variant="ghost" size="icon-sm" className="h-6 w-6 shrink-0" onClick={(e) => openEditForm(form, e)}>
+                        <FileText className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </CardHeader>
                   <CardContent>
                     {form.description && <p className="mb-3 text-sm text-muted-foreground line-clamp-2">{form.description}</p>}
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{form.schema.fields.length} campo{form.schema.fields.length !== 1 ? 's' : ''}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">{form.schema.fields.length} campo{form.schema.fields.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); setFormToDelete(form.id); setDeleteFormDialogOpen(true) }}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -372,8 +424,8 @@ export default function OnboardingPage() {
                       const displayValue = Array.isArray(value)
                         ? (value as string[]).join(', ')
                         : value !== undefined && value !== null && value !== ''
-                        ? String(value)
-                        : '—'
+                          ? String(value)
+                          : '—'
                       return (
                         <div key={field.id} className="space-y-1 rounded-lg border p-3">
                           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{field.label}</p>
@@ -427,10 +479,10 @@ export default function OnboardingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Nuevo Formulario */}
-      <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
+      {/* Dialog: Nuevo / Editar Formulario */}
+      <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen} disablePointerDismissal={true}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Nuevo Formulario</DialogTitle><DialogDescription>Crea un formulario con campos personalizados</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{editingFormId ? 'Editar Formulario' : 'Nuevo Formulario'}</DialogTitle><DialogDescription>{editingFormId ? 'Modifica los campos del formulario.' : 'Crea un formulario con campos personalizados.'}</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Nombre del formulario</Label><Input value={newFormName} onChange={(e) => setNewFormName(e.target.value)} placeholder="Ej: Información de Marca" /></div>
             <div className="space-y-2"><Label>Descripción</Label><Textarea value={newFormDescription} onChange={(e) => setNewFormDescription(e.target.value)} placeholder="Describe el propósito..." rows={2} /></div>
@@ -477,7 +529,18 @@ export default function OnboardingPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateForm}>Crear Formulario</Button>
+            <Button onClick={handleCreateForm}>{editingFormId ? 'Guardar Cambios' : 'Crear Formulario'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Eliminar Formulario */}
+      <Dialog open={deleteFormDialogOpen} onOpenChange={setDeleteFormDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Eliminar Formulario</DialogTitle><DialogDescription>Esta acción eliminará el formulario. Sólo hazlo si no hay clientes que dependan de él en etapas activas.</DialogDescription></DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteFormDialogOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteForm}>Eliminar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

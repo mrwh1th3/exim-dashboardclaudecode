@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/logo-diamond.png", sizes: "32x32",  type: "image/png" },
+      { url: "/logo-diamond.png", sizes: "32x32", type: "image/png" },
       { url: "/logo-diamond.png", sizes: "192x192", type: "image/png" },
       { url: "/logo-diamond.png", sizes: "512x512", type: "image/png" },
     ],
@@ -69,7 +69,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >

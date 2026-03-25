@@ -147,7 +147,7 @@ export default function ClientSocialCalendarPage() {
     setSubmitting(false)
   }
 
-  const canAct = (post: SocialPost) => ['pending_review', 'pending_approval', 'changes_requested', 'max_rounds_reached'].includes(post.status)
+  const canAct = (post: SocialPost) => post.status !== 'published'
   const canRequestChanges = (post: SocialPost) => canAct(post) && post.status !== 'max_rounds_reached' && post.changeRounds < post.maxRounds
 
   return (

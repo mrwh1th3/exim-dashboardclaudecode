@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle2, Circle, Clock, Lock } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Circle, Clock, Lock, Edit, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Switch } from '@/components/ui/switch'
 
 interface ClientDetailPageProps {
   params: Promise<{ clientId: string }>
@@ -40,6 +44,20 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
   const [subscription, setSubscription] = useState<any>(null)
   const [plan, setPlan] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editCompany, setEditCompany] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editIsActive, setEditIsActive] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const [flowTemplates, setFlowTemplates] = useState<any[]>([])
+  const [plans, setPlans] = useState<any[]>([])
+  const [serviceDialogOpen, setServiceDialogOpen] = useState(false)
+  const [selectedFlowId, setSelectedFlowId] = useState<string>('')
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('')
 
   useEffect(() => {
     const supabase = createClient()
@@ -95,6 +113,14 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
         setSubscription(sub)
         setPlan(sub.subscription_plans)
       }
+
+      // Load available flows and plans globally
+      const [{ data: flowsData }, { data: plansData }] = await Promise.all([
+        supabase.from('flow_templates').select('id, name, type').eq('is_active', true),
+        supabase.from('subscription_plans').select('id, name').eq('is_active', true)
+      ])
+      setFlowTemplates(flowsData ?? [])
+      setPlans(plansData ?? [])
     })()
   }, [clientId])
 
@@ -143,6 +169,85 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     toast.success('Etapa actualizada')
   }
 
+  function openEditDialog() {
+    setEditName(client.full_name || '')
+    setEditEmail(client.email || '')
+    setEditCompany(client.company_name || '')
+    setEditPhone(client.phone || '')
+    setEditIsActive(client.is_active ?? true)
+    setEditDialogOpen(true)
+  }
+
+  async function handleUpdateProfile() {
+    if (!editName.trim() || !editEmail.trim()) {
+      toast.error('Nombre y correo son requeridos')
+      return
+    }
+    setSaving(true)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: editName.trim(),
+        email: editEmail.trim(),
+        company_name: editCompany.trim() || null,
+        phone: editPhone.trim() || null,
+        is_active: editIsActive
+      })
+      .eq('id', clientId)
+
+    if (error) {
+      toast.error('Error al actualizar perfil')
+      setSaving(false)
+      return
+    }
+
+    setClient((prev: any) => ({
+      ...prev,
+      full_name: editName.trim(),
+      email: editEmail.trim(),
+      company_name: editCompany.trim() || null,
+      phone: editPhone.trim() || null,
+      is_active: editIsActive
+    }))
+    toast.success('Perfil actualizado exitosamente')
+    setSaving(false)
+    setEditDialogOpen(false)
+  }
+
+  function openServiceDialog() {
+    setSelectedFlowId(clientFlow?.flow_templates?.id || '')
+    setSelectedPlanId(plan?.id || '')
+    setServiceDialogOpen(true)
+  }
+
+  async function handleChangeService() {
+    setSaving(true)
+    const supabase = createClient()
+
+    // Update Flow
+    if (selectedFlowId !== clientFlow?.flow_templates?.id) {
+      if (clientFlow) {
+        await supabase.from('client_flows').update({ flow_template_id: selectedFlowId }).eq('id', clientFlow.id)
+      } else if (selectedFlowId) {
+        await supabase.from('client_flows').insert({ client_id: clientId, flow_template_id: selectedFlowId, status: 'not_started' })
+      }
+    }
+
+    // Update Plan
+    if (selectedPlanId !== plan?.id) {
+      if (subscription) {
+        await supabase.from('client_subscriptions').update({ plan_id: selectedPlanId }).eq('id', subscription.id)
+      } else if (selectedPlanId) {
+        await supabase.from('client_subscriptions').insert({ client_id: clientId, plan_id: selectedPlanId, status: 'active' })
+      }
+    }
+
+    toast.success('Servicios actualizados. Recarga para ver todos los cambios.')
+    setSaving(false)
+    setServiceDialogOpen(false)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -183,7 +288,17 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
               <Badge variant="outline" className="border-red-500 text-red-600">Inactivo</Badge>
             )}
           </div>
-          <p className="text-muted-foreground">{client.company_name} &middot; {client.email}</p>
+          <p className="text-muted-foreground">{client.company_name} &middot; {client.email}{client.phone ? ` · ${client.phone}` : ''}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={openServiceDialog}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Servicio
+          </Button>
+          <Button variant="outline" onClick={openEditDialog}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar Perfil
+          </Button>
         </div>
       </div>
 
@@ -205,8 +320,8 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                   {clientFlow.status === 'completed'
                     ? 'Completado'
                     : clientFlow.status === 'in_progress'
-                    ? 'En progreso'
-                    : 'No iniciado'}
+                      ? 'En progreso'
+                      : 'No iniciado'}
                 </Badge>
               )}
             </CardHeader>
@@ -261,49 +376,49 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             <CardContent>
               {requests.length > 0 ? (
                 <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Título / Sección</TableHead>
-                      <TableHead>Urgencia</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {requests.map((req) => {
-                      const status = req.request_statuses
-                      return (
-                        <TableRow key={req.id}>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {req.type === 'page_change' ? 'Cambio' : 'Producto'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {req.type === 'page_change' ? req.page_section : req.product_title}
-                          </TableCell>
-                          <TableCell>
-                            {req.urgency === 'urgent' ? (
-                              <Badge variant="destructive">Urgente</Badge>
-                            ) : (
-                              <Badge variant="outline">Normal</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge style={{ backgroundColor: status?.color, color: '#fff' }}>
-                              {status?.name}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(req.created_at).toLocaleDateString('es-MX')}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Título / Sección</TableHead>
+                        <TableHead>Urgencia</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Fecha</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {requests.map((req) => {
+                        const status = req.request_statuses
+                        return (
+                          <TableRow key={req.id}>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {req.type === 'page_change' ? 'Cambio' : 'Producto'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {req.type === 'page_change' ? req.page_section : req.product_title}
+                            </TableCell>
+                            <TableCell>
+                              {req.urgency === 'urgent' ? (
+                                <Badge variant="destructive">Urgente</Badge>
+                              ) : (
+                                <Badge variant="outline">Normal</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge style={{ backgroundColor: status?.color, color: '#fff' }}>
+                                {status?.name}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(req.created_at).toLocaleDateString('es-MX')}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <p className="text-muted-foreground">Este cliente no tiene solicitudes.</p>
@@ -339,17 +454,17 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                           subscription.status === 'active'
                             ? 'border-green-500 text-green-600'
                             : subscription.status === 'cancelled'
-                            ? 'border-red-500 text-red-600'
-                            : 'border-yellow-500 text-yellow-600'
+                              ? 'border-red-500 text-red-600'
+                              : 'border-yellow-500 text-yellow-600'
                         }
                       >
                         {subscription.status === 'active'
                           ? 'Activa'
                           : subscription.status === 'cancelled'
-                          ? 'Cancelada'
-                          : subscription.status === 'past_due'
-                          ? 'Vencida'
-                          : 'Inactiva'}
+                            ? 'Cancelada'
+                            : subscription.status === 'past_due'
+                              ? 'Vencida'
+                              : 'Inactiva'}
                       </Badge>
                     </div>
                     <div className="space-y-1">
@@ -387,6 +502,91 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Cliente</DialogTitle>
+            <DialogDescription>Modifica toda la información del cliente aquí.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nombre Completo</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Correo Electrónico</Label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Empresa (Opcional)</Label>
+              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Teléfono (Opcional)</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+            </div>
+            <div className="flex items-center justify-between mt-4 rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label>Cuenta Activa</Label>
+                <p className="text-sm text-muted-foreground">
+                  Desactiva para bloquear su acceso.
+                </p>
+              </div>
+              <Switch checked={editIsActive} onCheckedChange={setEditIsActive} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={handleUpdateProfile} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cambiar Servicio</DialogTitle>
+            <DialogDescription>Modifica el flujo de onboarding y el plan de suscripción de este cliente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Flujo de Onboarding</Label>
+              <Select value={selectedFlowId} onValueChange={setSelectedFlowId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un flujo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {flowTemplates.map(f => (
+                    <SelectItem key={f.id} value={f.id}>{f.name} ({f.type})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Plan de Suscripción</Label>
+              <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setServiceDialogOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={handleChangeService} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

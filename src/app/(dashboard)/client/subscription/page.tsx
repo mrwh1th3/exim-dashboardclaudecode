@@ -92,7 +92,7 @@ export function ClientSubscriptionSection() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Mi Suscripción</h2>
         <p className="text-muted-foreground">Detalles de tu plan actual</p>

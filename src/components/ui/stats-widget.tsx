@@ -18,6 +18,8 @@ export interface StatsWidgetProps {
   /** Hex or CSS color override for the sparkline and accent. */
   accentColor?: string
   className?: string
+  /** Whether to show the sparkline chart on the right side. Defaults to true. */
+  showChart?: boolean
 }
 
 const generateSmoothPath = (points: number[], w: number, h: number): string => {
@@ -47,6 +49,7 @@ export function StatsWidget({
   description,
   accentColor,
   className,
+  showChart = true,
 }: StatsWidgetProps) {
   const lineRef = useRef<SVGPathElement>(null)
   const areaRef = useRef<SVGPathElement>(null)
@@ -125,8 +128,13 @@ export function StatsWidget({
           )}
 
           <p
-            className="text-foreground leading-none mt-1"
-            style={{ fontFamily: 'var(--font-display)', fontSize: '2.8rem' }}
+            className={cn("text-foreground mt-1", typeof value === 'string' ? "line-clamp-2" : "leading-none")}
+            style={{
+              fontFamily: typeof value === 'number' ? 'var(--font-display)' : 'var(--font-sans)',
+              fontSize: typeof value === 'number' ? '2.8rem' : '1.5rem',
+              fontWeight: typeof value === 'number' ? 'normal' : '600',
+              lineHeight: typeof value === 'number' ? '1' : '1.2',
+            }}
           >
             {prefix}
             {typeof value === 'number' ? <NumberTicker value={value} /> : value}
@@ -139,30 +147,32 @@ export function StatsWidget({
         </div>
 
         {/* Right: sparkline chart */}
-        <div className="w-[38%] h-14 shrink-0">
-          <svg
-            viewBox={`0 0 ${W} ${H}`}
-            className="w-full h-full"
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id={uid} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={strokeColor} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={strokeColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <path ref={areaRef} d={areaPath} fill={`url(#${uid})`} />
-            <path
-              ref={lineRef}
-              d={linePath}
-              fill="none"
-              stroke={strokeColor}
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+        {showChart && (
+          <div className="w-[38%] h-14 shrink-0">
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              className="w-full h-full"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id={uid} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={strokeColor} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={strokeColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <path ref={areaRef} d={areaPath} fill={`url(#${uid})`} />
+              <path
+                ref={lineRef}
+                d={linePath}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        )}
       </div>
     </div>
   )

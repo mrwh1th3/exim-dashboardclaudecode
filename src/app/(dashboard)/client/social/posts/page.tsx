@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { CheckCircle, MessageSquare, AlertTriangle, Megaphone } from 'lucide-react'
+import { CheckCircle, MessageSquare, AlertTriangle, Megaphone, Eye } from 'lucide-react'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ServiceNotAvailable } from '@/components/shared/service-not-available'
 import { useClientServices } from '@/hooks/use-client-services'
@@ -46,14 +47,15 @@ function RoundsCounter({ used, max, type }: { used: number; max: number; type: s
   )
 }
 
-function PostCard({ post, onApprove, onRequestChanges, onEscalate }: {
+function PostCard({ post, onApprove, onRequestChanges, onEscalate, onViewDetail }: {
   post: SocialPost
   onApprove: (p: SocialPost) => void
   onRequestChanges: (p: SocialPost) => void
   onEscalate: (p: SocialPost) => void
+  onViewDetail: (p: SocialPost) => void
 }) {
   const badge = statusBadgeMap[post.status] ?? { label: post.status, className: '' }
-  const canAct = ['pending_review', 'pending_approval', 'changes_requested', 'max_rounds_reached'].includes(post.status)
+  const canAct = post.status !== 'published'
   const canRequestChanges = canAct && post.status !== 'max_rounds_reached' && post.changeRounds < post.maxRounds
   const canEscalate = post.status === 'max_rounds_reached'
 
@@ -85,10 +87,13 @@ function PostCard({ post, onApprove, onRequestChanges, onEscalate }: {
           </div>
         )}
 
-        {canAct && (
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+        {canAct ? (
+          <div className="flex items-center justify-between gap-2 flex-wrap mt-4">
             <RoundsCounter used={post.changeRounds} max={post.maxRounds} type={post.type} />
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => onViewDetail(post)}>
+                <Eye className="h-3.5 w-3.5 mr-1" />Ver
+              </Button>
               {canEscalate && (
                 <Button variant="outline" size="sm" className="text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => onEscalate(post)}>
                   <AlertTriangle className="h-3.5 w-3.5 mr-1" />Escalar
@@ -103,6 +108,13 @@ function PostCard({ post, onApprove, onRequestChanges, onEscalate }: {
                 <CheckCircle className="h-3.5 w-3.5 mr-1" />Aprobar
               </Button>
             </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2 flex-wrap mt-4">
+            <span className="text-xs text-muted-foreground">No requiere acción inmediata</span>
+            <Button variant="outline" size="sm" onClick={() => onViewDetail(post)}>
+              <Eye className="h-3.5 w-3.5 mr-1" />Ver detalles completas
+            </Button>
           </div>
         )}
 
@@ -135,6 +147,9 @@ export default function ClientPostsPage() {
   // Escalate dialog
   const [escalateDialog, setEscalateDialog] = useState(false)
   const [escalateTarget, setEscalateTarget] = useState<SocialPost | null>(null)
+  // Preview
+  const [previewDialog, setPreviewDialog] = useState(false)
+  const [previewPost, setPreviewPost] = useState<SocialPost | null>(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -261,6 +276,11 @@ export default function ClientPostsPage() {
     setSubmitting(false)
   }
 
+  function openPreview(post: SocialPost) {
+    setPreviewPost(post)
+    setPreviewDialog(true)
+  }
+
   const pending = posts.filter((p) => ['pending_review', 'pending_approval', 'changes_requested', 'max_rounds_reached'].includes(p.status))
   const scheduled = posts.filter((p) => ['approved', 'scheduled'].includes(p.status))
   const published = posts.filter((p) => p.status === 'published')
@@ -294,7 +314,7 @@ export default function ClientPostsPage() {
           {pending.length === 0 ? (
             <EmptyState icon={<Megaphone className="h-8 w-8" />} title="Sin pendientes" description="No tienes publicaciones esperando tu revisión." />
           ) : pending.map((post) => (
-            <PostCard key={post.id} post={post} onApprove={handleApprove} onRequestChanges={openRequestChanges} onEscalate={openEscalate} />
+            <PostCard key={post.id} post={post} onApprove={handleApprove} onRequestChanges={openRequestChanges} onEscalate={openEscalate} onViewDetail={openPreview} />
           ))}
         </TabsContent>
 
@@ -302,7 +322,7 @@ export default function ClientPostsPage() {
           {scheduled.length === 0 ? (
             <EmptyState icon={<Megaphone className="h-8 w-8" />} title="Sin programados" description="Nada programado por el momento." />
           ) : scheduled.map((post) => (
-            <PostCard key={post.id} post={post} onApprove={handleApprove} onRequestChanges={openRequestChanges} onEscalate={openEscalate} />
+            <PostCard key={post.id} post={post} onApprove={handleApprove} onRequestChanges={openRequestChanges} onEscalate={openEscalate} onViewDetail={openPreview} />
           ))}
         </TabsContent>
 
@@ -310,7 +330,7 @@ export default function ClientPostsPage() {
           {published.length === 0 ? (
             <EmptyState icon={<Megaphone className="h-8 w-8" />} title="Sin publicados" description="Aún no hay publicaciones publicadas." />
           ) : published.map((post) => (
-            <PostCard key={post.id} post={post} onApprove={handleApprove} onRequestChanges={openRequestChanges} onEscalate={openEscalate} />
+            <PostCard key={post.id} post={post} onApprove={handleApprove} onRequestChanges={openRequestChanges} onEscalate={openEscalate} onViewDetail={openPreview} />
           ))}
         </TabsContent>
 
@@ -318,7 +338,7 @@ export default function ClientPostsPage() {
           {posts.length === 0 ? (
             <EmptyState icon={<Megaphone className="h-8 w-8" />} title="Sin publicaciones" description="Tu equipo aún no ha creado publicaciones para tu marca." />
           ) : posts.map((post) => (
-            <PostCard key={post.id} post={post} onApprove={handleApprove} onRequestChanges={openRequestChanges} onEscalate={openEscalate} />
+            <PostCard key={post.id} post={post} onApprove={handleApprove} onRequestChanges={openRequestChanges} onEscalate={openEscalate} onViewDetail={openPreview} />
           ))}
         </TabsContent>
       </Tabs>
@@ -378,6 +398,71 @@ export default function ClientPostsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Preview Sheet (matches Admin layout) */}
+      <Sheet open={previewDialog} onOpenChange={setPreviewDialog}>
+        <SheetContent className="overflow-y-auto sm:max-w-md">
+          {previewPost && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  {previewPost.type === 'story' ? '📱' : '🖼'}
+                  {previewPost.title || 'Detalle de la publicación'}
+                </SheetTitle>
+                <SheetDescription>
+                  {previewPost.scheduledDate ? `${previewPost.scheduledDate} ${previewPost.scheduledTime ?? ''}` : 'Sin fecha'}
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-6">
+                <div className="flex items-center gap-2">
+                  <Badge className={statusBadgeMap[previewPost.status]?.className ?? ''}>
+                    {statusBadgeMap[previewPost.status]?.label ?? previewPost.status}
+                  </Badge>
+                  {previewPost.changeRounds > 0 && (
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {previewPost.changeRounds}/{previewPost.maxRounds} rondas usadas
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Plataformas</h4>
+                  <div className="flex gap-2 flex-wrap">
+                    {previewPost.platforms.map((p) => (
+                      <Badge key={p} variant="secondary" className="capitalize px-3 py-1 bg-muted">{p}</Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Contenido de la publicación</h4>
+                  <div className="text-sm whitespace-pre-wrap text-foreground bg-muted/60 p-4 rounded-xl border">
+                    {previewPost.content}
+                  </div>
+                </div>
+
+                {previewPost.mediaUrls.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">Imágenes / Videos</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {previewPost.mediaUrls.map((url, i) => (
+                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden border bg-muted/30">
+                          {url.match(/\.(mp4|webm)$/i) ? (
+                            <video src={url} className="object-cover w-full h-full" controls />
+                          ) : (
+                            <img src={url} alt={`Media ${i + 1}`} className="object-cover w-full h-full" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

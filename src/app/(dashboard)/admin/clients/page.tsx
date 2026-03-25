@@ -2,15 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Trash2, Edit } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 
 interface ClientRow {
   id: string
@@ -24,6 +27,14 @@ interface ClientRow {
 export default function ClientsListPage() {
   const [clients, setClients] = useState<ClientRow[]>([])
   const [search, setSearch] = useState('')
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [clientToDelete, setClientToDelete] = useState<string | null>(null)
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingClient, setEditingClient] = useState<ClientRow | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editCompany, setEditCompany] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -63,6 +74,42 @@ export default function ClientsListPage() {
     )
   })
 
+  async function handleDeleteClient() {
+    if (!clientToDelete) return
+    const supabase = createClient()
+    const { error } = await supabase.from('profiles').delete().eq('id', clientToDelete)
+    if (error) { toast.error('Error al eliminar el cliente'); return }
+    setClients((prev) => prev.filter(c => c.id !== clientToDelete))
+    setClientToDelete(null)
+    setDeleteDialogOpen(false)
+    toast.success('Cliente eliminado')
+  }
+
+  function openEditClient(client: ClientRow) {
+    setEditingClient(client)
+    setEditName(client.fullName)
+    setEditCompany(client.companyName || '')
+    setEditDialogOpen(true)
+  }
+
+  async function handleUpdateClient() {
+    if (!editingClient || !editName.trim()) {
+      toast.error('El nombre es requerido')
+      return
+    }
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: editName.trim(), company_name: editCompany.trim() || null })
+      .eq('id', editingClient.id)
+
+    if (error) { toast.error('Error al actualizar el cliente'); return }
+    setClients((prev) => prev.map(c => c.id === editingClient.id ? { ...c, fullName: editName.trim(), companyName: editCompany.trim() || undefined } : c))
+    setEditDialogOpen(false)
+    setEditingClient(null)
+    toast.success('Cliente actualizado')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -101,7 +148,7 @@ export default function ClientsListPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Servicio</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,10 +171,16 @@ export default function ClientsListPage() {
                       <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-400">Inactivo</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="flex justify-end gap-2">
                     <Link href={`/admin/clients/${client.id}`}>
-                      <Button variant="ghost" size="sm">Ver detalle</Button>
+                      <Button variant="ghost" size="sm">Ver</Button>
                     </Link>
+                    <Button variant="ghost" size="icon-sm" onClick={() => openEditClient(client)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" onClick={() => { setClientToDelete(client.id); setDeleteDialogOpen(true) }}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -142,6 +195,46 @@ export default function ClientsListPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Dialog: Delete Client */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar Cliente</DialogTitle>
+            <DialogDescription>
+              Esta acción eliminará al cliente y todos sus datos asociados permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteClient}>Eliminar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Edit Client */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Cliente</DialogTitle>
+            <DialogDescription>Modifica la información general de este cliente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nombre Completo</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Empresa (Opcional)</Label>
+              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateClient}>Guardar Cambios</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

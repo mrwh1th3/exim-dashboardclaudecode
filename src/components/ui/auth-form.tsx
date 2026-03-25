@@ -59,7 +59,7 @@ const Button: React.FC<ButtonProps> = ({ children, className, isLoading, ...prop
 const Header: React.FC = () => (
   <div className="mb-6 text-center">
     <h1
-      className="text-muted-foreground leading-none"
+      className="text-white/80 leading-none"
       style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', letterSpacing: '0.02em' }}
     >
       Inicia sesión en tu cuenta
@@ -71,7 +71,7 @@ const Divider: React.FC = () => (
   <div className="my-6 flex items-center gap-3">
     <div className="h-[1px] w-full" style={{ background: 'oklch(1 0 0 / 10%)' }} />
     <span
-      className="text-muted-foreground uppercase"
+      className="text-white/60 uppercase"
       style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', letterSpacing: '0.1em' }}
     >
       Ingresa tus credenciales
@@ -103,7 +103,7 @@ const LoginForm: React.FC = () => {
       <div className="mb-4">
         <label
           htmlFor="email-input"
-          className="mb-2 block text-muted-foreground uppercase tracking-widest"
+          className="mb-2 block text-white/60 uppercase tracking-widest"
           style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.22em' }}
         >
           Email
@@ -115,8 +115,8 @@ const LoginForm: React.FC = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full rounded-[15px] px-3 py-2.5 text-foreground
-          placeholder:text-muted-foreground/40
+          className="w-full rounded-[15px] px-3 py-2.5 text-white/90
+          placeholder:text-white/40
           ring-1 ring-transparent transition-all focus:outline-0 focus:ring-[#a5d2c8]"
           style={{
             background: 'oklch(0.16 0 0)',
@@ -130,7 +130,7 @@ const LoginForm: React.FC = () => {
         <div className="mb-2 flex items-end justify-between">
           <label
             htmlFor="password-input"
-            className="block text-muted-foreground uppercase tracking-widest"
+            className="block text-white/60 uppercase tracking-widest"
             style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.22em' }}
           >
             Contraseña
@@ -150,8 +150,8 @@ const LoginForm: React.FC = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full rounded-[15px] px-3 py-2.5 text-foreground
-          placeholder:text-muted-foreground/40
+          className="w-full rounded-[15px] px-3 py-2.5 text-white/90
+          placeholder:text-white/40
           ring-1 ring-transparent transition-all focus:outline-0 focus:ring-[#a5d2c8]"
           style={{
             background: 'oklch(0.16 0 0)',
@@ -170,7 +170,7 @@ const LoginForm: React.FC = () => {
 
 const TermsAndConditions: React.FC = () => (
   <p
-    className="mt-9 text-center text-muted-foreground/60"
+    className="mt-9 text-center text-white/60"
     style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.05em' }}
   >
     Al iniciar sesión, aceptas nuestros{" "}

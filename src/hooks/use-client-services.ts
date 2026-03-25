@@ -18,8 +18,8 @@ export function useClientServices() {
       try {
         const supabase = createClient()
 
-        // Get client's active subscription with plan features
-        const { data: subscription } = await supabase
+        // Get client's active subscriptions with plan features
+        const { data: subscriptions, error } = await supabase
           .from('client_subscriptions')
           .select(`
             subscription_plans(
@@ -29,31 +29,65 @@ export function useClientServices() {
           `)
           .eq('client_id', userId)
           .eq('status', 'active')
-          .single()
 
-        if (subscription?.subscription_plans?.features) {
-          const features = subscription.subscription_plans.features as string[]
-          
-          // Check if features include social media or web page services
+        if (error) {
+          console.error('Supabase error checking client services:', error)
+          return
+        }
+
+        if (subscriptions && subscriptions.length > 0) {
+          const allFeatures: string[] = []
+
+          subscriptions.forEach((sub: any) => {
+            // sub.subscription_plans could be an array or an object depending on the relation
+            const plans = Array.isArray(sub.subscription_plans)
+              ? sub.subscription_plans
+              : [sub.subscription_plans]
+
+            plans.forEach((plan: any) => {
+              // Also consider the plan name itself as a "feature" keyword
+              if (plan?.name && typeof plan.name === 'string') {
+                allFeatures.push(plan.name)
+              }
+              if (plan?.features && Array.isArray(plan.features)) {
+                allFeatures.push(...(plan.features as string[]))
+              }
+            })
+          })
+
+          // Check if aggregated features include social media or web page services
           setHasSocialMedia(
-            features.some(feature => 
-              feature.toLowerCase().includes('redes') ||
-              feature.toLowerCase().includes('social') ||
-              feature.toLowerCase().includes('instagram') ||
-              feature.toLowerCase().includes('facebook') ||
-              feature.toLowerCase().includes('twitter') ||
-              feature.toLowerCase().includes('linkedin')
-            )
+            allFeatures.some(feature => {
+              const f = typeof feature === 'string' ? feature.toLowerCase() : ''
+              return f.includes('redes') ||
+                f.includes('social') ||
+                f.includes('instagram') ||
+                f.includes('facebook') ||
+                f.includes('twitter') ||
+                f.includes('linkedin') ||
+                f.includes('tiktok') ||
+                f.includes('growth') ||
+                f.includes('contenido') ||
+                f.includes('community') ||
+                f.includes('post')
+            })
           )
-          
+
           setHasWebPage(
-            features.some(feature => 
-              feature.toLowerCase().includes('página') ||
-              feature.toLowerCase().includes('web') ||
-              feature.toLowerCase().includes('sitio') ||
-              feature.toLowerCase().includes('pagina')
-            )
+            allFeatures.some(feature => {
+              const f = typeof feature === 'string' ? feature.toLowerCase() : ''
+              return f.includes('página') ||
+                f.includes('web') ||
+                f.includes('sitio') ||
+                f.includes('pagina') ||
+                f.includes('landing') ||
+                f.includes('ecommerce')
+            })
           )
+        } else {
+          // If no active subscriptions, they don't have these services by default.
+          setHasSocialMedia(false)
+          setHasWebPage(false)
         }
       } catch (error) {
         console.error('Error checking client services:', error)

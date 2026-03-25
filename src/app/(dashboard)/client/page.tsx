@@ -173,12 +173,14 @@ export default function ClientPortalPage() {
             value={plan?.name ?? 'Sin plan'}
             accentColor="#10B981"
             description={plan ? `$${plan.price} ${plan.currency}/mes` : undefined}
+            showChart={false}
           />
           <StatsWidget
             title="Próximo Post"
             value={nextPost?.scheduled_date ?? 'Sin posts'}
             accentColor="#0EA5E9"
             description={nextPost?.title ?? undefined}
+            showChart={false}
           />
         </div>
 
