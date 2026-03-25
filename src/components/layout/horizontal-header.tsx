@@ -200,7 +200,7 @@ export function HorizontalHeader() {
 								</NavigationMenuContent>
 							</NavigationMenuItem>
 
-							{(isClient ? hasSocialMedia : true) && (
+							{(isClient && hasSocialMedia) && (
 								<NavigationMenuItem>
 									<NavigationMenuTrigger className="bg-transparent">Redes Sociales</NavigationMenuTrigger>
 									<NavigationMenuContent>
@@ -341,7 +341,7 @@ export function HorizontalHeader() {
 							</div>
 
 							{/* Social Navigation */}
-							{(isClient ? hasSocialMedia : true) && (
+							{(isClient && hasSocialMedia) && (
 								<div>
 									<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
 										Redes Sociales
