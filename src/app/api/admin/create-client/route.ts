@@ -4,7 +4,10 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
-  const { fullName, email, companyName, phone, flowTemplateId, planId, stripeCustomerId: explicitStripeCustomerId } = await request.json()
+  const { fullName, email, companyName, phone, flowTemplateId, planIds, stripeCustomerId: explicitStripeCustomerId } = await request.json()
+
+  // Support both single planId (legacy) and multiple planIds
+  const planIdsArray: string[] = planIds ?? []
 
   if (!fullName || !email) {
     return NextResponse.json({ error: 'fullName y email son requeridos' }, { status: 400 })
@@ -106,39 +109,47 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Assign subscription plan if selected
-  if (planId) {
-    // Get stripe_price_id of the selected local plan
-    const { data: plan } = await adminClient
-      .from('subscription_plans')
-      .select('stripe_price_id')
-      .eq('id', planId)
-      .single()
+  // Assign subscription plans if selected (multiple plans supported)
+  if (planIdsArray.length > 0) {
+    for (const planIdItem of planIdsArray) {
+      // Get stripe_price_id of the selected local plan
+      const { data: plan } = await adminClient
+        .from('subscription_plans')
+        .select('stripe_price_id')
+        .eq('id', planIdItem)
+        .single()
 
-    // Look for an existing Stripe subscription for this customer + price
-    let stripeSubscriptionId: string | null = null
-    if (stripeCustomerId && plan?.stripe_price_id) {
-      try {
-        const subs = await stripe.subscriptions.list({
-          customer: stripeCustomerId,
-          status: 'active',
-          limit: 100,
-        })
-        const match = subs.data.find((s) =>
-          s.items.data.some((item) => item.price.id === plan.stripe_price_id)
-        )
-        if (match) stripeSubscriptionId = match.id
-      } catch {
-        // Stripe not configured
+      // Check if there's already an active Stripe subscription for this customer + price
+      let stripeSubscriptionId: string | null = null
+      let initialStatus: 'pending' | 'active' = 'pending'
+
+      if (stripeCustomerId && plan?.stripe_price_id) {
+        try {
+          const subs = await stripe.subscriptions.list({
+            customer: stripeCustomerId,
+            status: 'active',
+            limit: 100,
+          })
+          const match = subs.data.find((s) =>
+            s.items.data.some((item) => item.price.id === plan.stripe_price_id)
+          )
+          if (match) {
+            stripeSubscriptionId = match.id
+            // If already paid in Stripe, mark as active
+            initialStatus = 'active'
+          }
+        } catch {
+          // Stripe not configured
+        }
       }
-    }
 
-    await adminClient.from('client_subscriptions').insert({
-      client_id: userId,
-      plan_id: planId,
-      status: 'active',
-      ...(stripeSubscriptionId ? { stripe_subscription_id: stripeSubscriptionId } : {}),
-    })
+      await adminClient.from('client_subscriptions').insert({
+        client_id: userId,
+        plan_id: planIdItem,
+        status: initialStatus,
+        ...(stripeSubscriptionId ? { stripe_subscription_id: stripeSubscriptionId } : {}),
+      })
+    }
   }
 
   return NextResponse.json({ success: true, clientId: userId, tempPassword })

@@ -208,7 +208,41 @@ export default function OnboardingPage() {
     const updates: Record<string, string | null> = { status: nextStatus }
     if (nextStatus === 'in_progress') updates.started_at = new Date().toISOString()
     if (nextStatus === 'completed') updates.completed_at = new Date().toISOString()
+
+    // Update client_flow status
     await supabase.from('client_flows').update(updates).eq('id', cfId)
+
+    // When marking as completed, also mark all stages as completed
+    if (nextStatus === 'completed') {
+      await supabase
+        .from('client_stage_progress')
+        .update({ status: 'completed' })
+        .eq('client_flow_id', cfId)
+    }
+
+    // When resetting to not_started, reset stages: first one available, rest locked
+    if (nextStatus === 'not_started') {
+      // Get all stage progress records for this flow ordered by stage order
+      const { data: stageProgress } = await supabase
+        .from('client_stage_progress')
+        .select('id, stage_id, flow_stages!inner(order_index)')
+        .eq('client_flow_id', cfId)
+        .order('flow_stages(order_index)', { ascending: true })
+
+      if (stageProgress && stageProgress.length > 0) {
+        // Reset first stage to available, rest to locked
+        const firstStageId = stageProgress[0].id
+        await supabase
+          .from('client_stage_progress')
+          .update({ status: 'locked' })
+          .eq('client_flow_id', cfId)
+        await supabase
+          .from('client_stage_progress')
+          .update({ status: 'available' })
+          .eq('id', firstStageId)
+      }
+    }
+
     setClientFlows((prev) => prev.map((c) => c.id === cfId ? { ...c, status: nextStatus, startedAt: nextStatus === 'in_progress' ? new Date().toISOString() : c.startedAt, completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined } : c))
   }
 

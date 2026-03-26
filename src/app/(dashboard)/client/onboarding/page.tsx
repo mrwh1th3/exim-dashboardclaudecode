@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useFlowsStore } from '@/stores/flows-store'
-import { FlowStage, ClientStageProgress, FormTemplate, FormField, FormSubmission } from '@/types/onboarding'
+import { FlowStage, ClientStageProgress, FormTemplate, FormField, FormSubmission, ClientFlow, FlowTemplate } from '@/types/onboarding'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,8 +14,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Check, Lock, Circle, AlertCircle, FileText } from 'lucide-react'
+import { Check, Lock, Circle, AlertCircle, FileText, Globe, Share2 } from 'lucide-react'
 
 export function ClientOnboardingSection() {
   const { user } = useAuthStore()
@@ -36,75 +37,80 @@ export function ClientOnboardingSection() {
   const [formData, setFormData] = useState<Record<string, unknown>>({})
   const [submissions, setSubmissions] = useState<FormSubmission[]>([])
   const [isReadOnly, setIsReadOnly] = useState(false)
+  const [activeFlowId, setActiveFlowId] = useState<string | null>(null)
+  const [selectedClientFlow, setSelectedClientFlow] = useState<ClientFlow | null>(null)
 
   // Load data from Supabase on mount
   useEffect(() => {
     async function loadData() {
       if (!user?.id) return
       const supabase = createClient()
-      
-      // Load client flow
-      const { data: clientFlowData } = await supabase
+
+      // Load ALL client flows for this user
+      const { data: clientFlowsData } = await supabase
         .from('client_flows')
         .select('*')
         .eq('client_id', user.id)
-        .maybeSingle()
-      
-      if (clientFlowData) {
-        // Load flow template
-        const { data: flowTemplateData } = await supabase
+        .order('created_at', { ascending: true })
+
+      if (clientFlowsData && clientFlowsData.length > 0) {
+        // Get all unique flow template IDs
+        const flowTemplateIds = [...new Set(clientFlowsData.map((cf: any) => cf.flow_template_id))]
+
+        // Load all flow templates
+        const { data: flowTemplatesData } = await supabase
           .from('flow_templates')
           .select('*')
-          .eq('id', clientFlowData.flow_template_id)
-          .single()
-        
-        if (flowTemplateData) {
-          // Load stages
+          .in('id', flowTemplateIds)
+
+        if (flowTemplatesData && flowTemplatesData.length > 0) {
+          // Load all stages for all flow templates
           const { data: stagesData } = await supabase
             .from('flow_stages')
             .select('*')
-            .eq('flow_template_id', flowTemplateData.id)
+            .in('flow_template_id', flowTemplateIds)
             .order('order_index')
-          
-          // Load stage progress
+
+          // Load stage progress for all client flows
+          const clientFlowIds = clientFlowsData.map((cf: any) => cf.id)
           const { data: progressData } = await supabase
             .from('client_stage_progress')
             .select('*')
-            .eq('client_flow_id', clientFlowData.id)
-          
+            .in('client_flow_id', clientFlowIds)
+
           // Load form templates
           const { data: formData } = await supabase
             .from('form_templates')
             .select('*')
             .order('created_at', { ascending: false })
-          
+
           // Update store with fresh data
-          const { updateClientFlowStatus, updateStageProgress } = useFlowsStore.getState()
-          
+          const { updateStageProgress } = useFlowsStore.getState()
+
           // Update client flows
           useFlowsStore.setState({
-            clientFlows: [{
-              id: clientFlowData.id,
-              clientId: clientFlowData.client_id,
-              flowTemplateId: clientFlowData.flow_template_id,
-              status: clientFlowData.status as any,
-              assignedBy: clientFlowData.assigned_by ?? '',
-              createdAt: clientFlowData.created_at
-            }]
+            clientFlows: clientFlowsData.map((cf: any) => ({
+              id: cf.id,
+              clientId: cf.client_id,
+              flowTemplateId: cf.flow_template_id,
+              status: cf.status as any,
+              assignedBy: cf.assigned_by ?? '',
+              createdAt: cf.created_at
+            }))
           })
-          
+
           // Update flow templates
           useFlowsStore.setState({
-            flowTemplates: [{
-              id: flowTemplateData.id,
-              name: flowTemplateData.name,
-              description: flowTemplateData.description ?? '',
-              type: flowTemplateData.type,
-              isActive: flowTemplateData.is_active,
-              createdBy: flowTemplateData.created_by,
-              createdAt: flowTemplateData.created_at,
-              updatedAt: flowTemplateData.updated_at,
-            }]
+            flowTemplates: flowTemplatesData.map((ft: any) => ({
+              id: ft.id,
+              name: ft.name,
+              description: ft.description ?? '',
+              type: ft.type,
+              isActive: ft.is_active,
+              createdBy: ft.created_by,
+              createdAt: ft.created_at,
+              updatedAt: ft.updated_at,
+            }))
           })
 
           // Update stages — map snake_case DB columns to camelCase TypeScript fields
@@ -121,14 +127,14 @@ export function ClientOnboardingSection() {
               createdAt: s.created_at,
             }))
           })
-          
+
           // Update stage progress
           if (progressData) {
             progressData.forEach((progress: any) => {
-              updateStageProgress(clientFlowData.id, progress.stage_id, progress.status as any)
+              updateStageProgress(progress.client_flow_id, progress.stage_id, progress.status as any)
             })
           }
-          
+
           // Update form templates
           if (formData) {
             useFlowsStore.setState({
@@ -138,45 +144,49 @@ export function ClientOnboardingSection() {
         }
       }
     }
-    
+
     loadData()
   }, [user?.id])
 
-  // Realtime: sync stage progress when admin updates it
+  // Realtime: sync stage progress when admin updates it (for all client flows)
   useEffect(() => {
     if (!user?.id) return
     const supabase = createClient()
-    let clientFlowId: string | null = null
+    const channels: ReturnType<typeof supabase.channel>[] = []
 
     supabase
       .from('client_flows')
       .select('id')
       .eq('client_id', user.id)
-      .maybeSingle()
-      .then(({ data }: { data: { id: string } | null }) => {
-        if (!data?.id) return
-        clientFlowId = data.id
+      .then(({ data }: { data: { id: string }[] | null }) => {
+        if (!data || data.length === 0) return
 
-        const channel = supabase
-          .channel(`stage-progress-${clientFlowId}`)
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'client_stage_progress',
-              filter: `client_flow_id=eq.${clientFlowId}`,
-            },
-            (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
-              const row = (payload.new ?? payload.old) as any
-              if (!row?.stage_id) return
-              updateStageProgress(clientFlowId!, row.stage_id, row.status)
-            }
-          )
-          .subscribe()
-
-        return () => { supabase.removeChannel(channel) }
+        // Subscribe to changes for each client flow
+        data.forEach(({ id: clientFlowId }) => {
+          const channel = supabase
+            .channel(`stage-progress-${clientFlowId}`)
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'client_stage_progress',
+                filter: `client_flow_id=eq.${clientFlowId}`,
+              },
+              (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+                const row = (payload.new ?? payload.old) as any
+                if (!row?.stage_id) return
+                updateStageProgress(clientFlowId, row.stage_id, row.status)
+              }
+            )
+            .subscribe()
+          channels.push(channel)
+        })
       })
+
+    return () => {
+      channels.forEach(channel => supabase.removeChannel(channel))
+    }
   }, [user?.id, updateStageProgress])
 
   // Load form submissions from Supabase on mount
@@ -209,30 +219,57 @@ export function ClientOnboardingSection() {
     loadSubmissions()
   }, [user?.id])
 
-  const clientFlow = useMemo(() => {
-    return clientFlows.find((f) => f.clientId === user?.id)
+  // Get all client flows for this user
+  const userClientFlows = useMemo(() => {
+    return clientFlows.filter((f) => f.clientId === user?.id)
   }, [clientFlows, user?.id])
 
-  const flowTemplate = useMemo(() => {
-    if (!clientFlow) return null
-    return flowTemplates.find((t) => t.id === clientFlow.flowTemplateId) ?? null
-  }, [clientFlow, flowTemplates])
+  // Set initial active flow when data loads
+  useEffect(() => {
+    if (userClientFlows.length > 0 && !activeFlowId) {
+      setActiveFlowId(userClientFlows[0].flowTemplateId)
+      setSelectedClientFlow(userClientFlows[0])
+    }
+  }, [userClientFlows, activeFlowId])
 
+  // Update selected client flow when active flow changes
+  useEffect(() => {
+    if (activeFlowId) {
+      const cf = userClientFlows.find((f) => f.flowTemplateId === activeFlowId)
+      setSelectedClientFlow(cf || null)
+    }
+  }, [activeFlowId, userClientFlows])
+
+  // Map of flowTemplateId -> FlowTemplate for quick lookup
+  const flowTemplatesMap = useMemo(() => {
+    const map = new Map<string, FlowTemplate>()
+    flowTemplates.forEach((ft) => map.set(ft.id, ft))
+    return map
+  }, [flowTemplates])
+
+  // Current active flow template
+  const activeFlowTemplate = useMemo(() => {
+    if (!activeFlowId) return null
+    return flowTemplatesMap.get(activeFlowId) ?? null
+  }, [activeFlowId, flowTemplatesMap])
+
+  // Stages for the active flow
   const stages = useMemo(() => {
-    if (!flowTemplate) return []
+    if (!activeFlowTemplate) return []
     return flowStages
-      .filter((s) => s.flowTemplateId === flowTemplate.id)
+      .filter((s) => s.flowTemplateId === activeFlowTemplate.id)
       .sort((a, b) => a.orderIndex - b.orderIndex)
-  }, [flowTemplate, flowStages])
+  }, [activeFlowTemplate, flowStages])
 
+  // Stage progress for the active client flow
   const stageProgress = useMemo(() => {
-    if (!clientFlow) return new Map<string, ClientStageProgress>()
+    if (!selectedClientFlow) return new Map<string, ClientStageProgress>()
     const map = new Map<string, ClientStageProgress>()
     allProgress
-      .filter((p) => p.clientFlowId === clientFlow.id)
+      .filter((p) => p.clientFlowId === selectedClientFlow.id)
       .forEach((p) => map.set(p.stageId, p))
     return map
-  }, [clientFlow, allProgress])
+  }, [selectedClientFlow, allProgress])
 
   const getStageStatus = (stage: FlowStage) => {
     const progress = stageProgress.get(stage.id)
@@ -254,9 +291,9 @@ export function ClientOnboardingSection() {
     const form = formTemplates.find((f) => f.id === formId)
     const targetStageId = stageId || selectedStage?.id
 
-    if (form && clientFlow && targetStageId) {
+    if (form && selectedClientFlow && targetStageId) {
       const existing = submissions.find(
-        (s) => s.clientFlowId === clientFlow.id && s.formTemplateId === formId && s.stageId === targetStageId
+        (s) => s.clientFlowId === selectedClientFlow.id && s.formTemplateId === formId && s.stageId === targetStageId
       )
       setFormData(existing?.data ?? {})
       setSelectedForm(form)
@@ -270,12 +307,12 @@ export function ClientOnboardingSection() {
   }
 
   const handleSubmitForm = async () => {
-    if (!clientFlow || !selectedStage || !selectedForm || !user?.id) return
+    if (!selectedClientFlow || !selectedStage || !selectedForm || !user?.id) return
 
     const supabase = createClient()
     const existing = submissions.find(
       (s) =>
-        s.clientFlowId === clientFlow.id &&
+        s.clientFlowId === selectedClientFlow.id &&
         s.formTemplateId === selectedForm.id &&
         s.stageId === selectedStage.id
     )
@@ -290,7 +327,7 @@ export function ClientOnboardingSection() {
       const { data: inserted } = await supabase
         .from('form_submissions')
         .insert({
-          client_flow_id: clientFlow.id,
+          client_flow_id: selectedClientFlow.id,
           form_template_id: selectedForm.id,
           stage_id: selectedStage.id,
           client_id: user.id,
@@ -304,7 +341,7 @@ export function ClientOnboardingSection() {
     const now = new Date().toISOString()
     const updatedSub: FormSubmission = {
       id: savedId ?? `sub-${Date.now()}`,
-      clientFlowId: clientFlow.id,
+      clientFlowId: selectedClientFlow.id,
       formTemplateId: selectedForm.id,
       stageId: selectedStage.id,
       data: formData,
@@ -321,10 +358,10 @@ export function ClientOnboardingSection() {
 
     const currentStatus = stageProgress.get(selectedStage.id)?.status
     if (currentStatus !== 'completed') {
-      updateStageProgress(clientFlow.id, selectedStage.id, 'in_progress')
+      updateStageProgress(selectedClientFlow.id, selectedStage.id, 'in_progress')
     }
-    if (clientFlow.status === 'not_started') {
-      updateClientFlowStatus(clientFlow.id, 'in_progress')
+    if (selectedClientFlow.status === 'not_started') {
+      updateClientFlowStatus(selectedClientFlow.id, 'in_progress')
     }
     toast.success('Formulario enviado exitosamente')
     setSheetOpen(false)
@@ -415,7 +452,7 @@ export function ClientOnboardingSection() {
     }
   }
 
-  if (!clientFlow || !flowTemplate) {
+  if (userClientFlows.length === 0 || !activeFlowTemplate) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
@@ -425,12 +462,40 @@ export function ClientOnboardingSection() {
     )
   }
 
+  // Filter submissions for the active flow
+  const activeFlowSubmissions = submissions.filter(
+    (s) => s.clientFlowId === selectedClientFlow?.id
+  )
+
   return (
     <div className="space-y-6">
+      {/* Show tabs only when there are multiple flows */}
+      {userClientFlows.length > 1 && (
+        <Tabs value={activeFlowId || undefined} onValueChange={(value) => setActiveFlowId(value)}>
+          <TabsList>
+            {userClientFlows.map((cf) => {
+              const ft = flowTemplatesMap.get(cf.flowTemplateId)
+              if (!ft) return null
+              return (
+                <TabsTrigger key={cf.id} value={cf.flowTemplateId} className="gap-2">
+                  {ft.type === 'web' ? (
+                    <Globe className="h-4 w-4" />
+                  ) : (
+                    <Share2 className="h-4 w-4" />
+                  )}
+                  {ft.name}
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </Tabs>
+      )}
+
+      {/* Flow header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">{flowTemplate.name}</h2>
-        {flowTemplate.description && (
-          <p className="text-muted-foreground">{flowTemplate.description}</p>
+        <h2 className="text-2xl font-bold tracking-tight">{activeFlowTemplate.name}</h2>
+        {activeFlowTemplate.description && (
+          <p className="text-muted-foreground">{activeFlowTemplate.description}</p>
         )}
       </div>
 
@@ -534,16 +599,16 @@ export function ClientOnboardingSection() {
       <Card>
         <CardHeader>
           <CardTitle>Historial de Envíos</CardTitle>
-          <CardDescription>Revisa el estado de todos tus formularios enviados</CardDescription>
+          <CardDescription>Revisa el estado de tus formularios enviados en este flujo</CardDescription>
         </CardHeader>
         <CardContent>
-          {submissions.length === 0 ? (
+          {activeFlowSubmissions.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              No has enviado ningún formulario aún.
+              No has enviado ningún formulario en este flujo aún.
             </p>
           ) : (
             <div className="space-y-3">
-              {submissions.map((submission) => {
+              {activeFlowSubmissions.map((submission) => {
                 const form = formTemplates.find((f) => f.id === submission.formTemplateId)
                 const stage = flowStages.find((s) => s.id === submission.stageId)
                 const isReviewed = submission.status === 'reviewed'
@@ -604,10 +669,10 @@ export function ClientOnboardingSection() {
                     {selectedStage.formIds.map((formId) => {
                       const form = formTemplates.find((f) => f.id === formId)
                       if (!form) return null
-                      const submission = clientFlow
+                      const submission = selectedClientFlow
                         ? submissions.find(
                             (s) =>
-                              s.clientFlowId === clientFlow.id &&
+                              s.clientFlowId === selectedClientFlow.id &&
                               s.formTemplateId === formId &&
                               s.stageId === selectedStage.id
                           )

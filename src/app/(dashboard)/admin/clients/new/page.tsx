@@ -45,11 +45,9 @@ export default function NewClientPage() {
   const [phone, setPhone] = useState('')
   const [serviceType, setServiceType] = useState<string>('')
   const [flowTemplateId, setFlowTemplateId] = useState<string>('')
-  const [planId, setPlanId] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
 
   const [flowTemplates, setFlowTemplates] = useState<any[]>([])
-  const [plans, setPlans] = useState<any[]>([])
 
   // Stripe link
   const [stripeCustomers, setStripeCustomers] = useState<StripeCustomer[]>([])
@@ -69,13 +67,6 @@ export default function NewClientPage() {
         .select('id, name, type, is_active')
         .eq('is_active', true)
       setFlowTemplates(flows ?? [])
-
-      const { data: planData } = await supabase
-        .from('subscription_plans')
-        .select('id, name, price, currency, interval')
-        .eq('is_active', true)
-        .order('price', { ascending: true })
-      setPlans(planData ?? [])
     })()
   }, [])
 
@@ -110,11 +101,6 @@ export default function NewClientPage() {
     if (customer) {
       if (!email && customer.customerEmail) setEmail(customer.customerEmail)
       if (!fullName && customer.customerName) setFullName(customer.customerName)
-      // Auto-select matching local plan by priceId
-      if (customer.priceId) {
-        const matchingPlan = plans.find((p: any) => p.stripe_price_id === customer.priceId)
-        if (matchingPlan) setPlanId(matchingPlan.id)
-      }
     }
   }
 
@@ -135,7 +121,6 @@ export default function NewClientPage() {
           companyName,
           phone,
           flowTemplateId,
-          planId,
           ...(selectedStripeCustomerId ? { stripeCustomerId: selectedStripeCustomerId } : {}),
         }),
       })
@@ -379,32 +364,6 @@ export default function NewClientPage() {
                     Flujo asignado automáticamente por tipo de servicio
                   </p>
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Plan de suscripción</Label>
-                <Select value={planId} onValueChange={setPlanId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un plan">
-                      {planId
-                        ? (() => {
-                            const p = plans.find((pl: any) => pl.id === planId)
-                            return p
-                              ? `${p.name} — $${p.price} ${p.currency}/${p.interval === 'monthly' ? 'mes' : 'año'}`
-                              : undefined
-                          })()
-                        : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plans.map((plan: any) => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name} — ${plan.price} {plan.currency}/
-                        {plan.interval === 'monthly' ? 'mes' : 'año'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="flex gap-3 pt-4">

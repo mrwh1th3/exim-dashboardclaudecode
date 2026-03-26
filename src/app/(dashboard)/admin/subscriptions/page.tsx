@@ -24,6 +24,7 @@ interface LocalPlan {
   currency: string
   interval: string
   stripePriceId: string | null
+  isActive: boolean
 }
 interface Sub {
   id: string
@@ -67,7 +68,7 @@ export default function SubscriptionsPage() {
       await Promise.all([
         supabase
           .from('subscription_plans')
-          .select('id, name, description, price, currency, interval, stripe_price_id')
+          .select('id, name, description, price, currency, interval, stripe_price_id, is_active')
           .order('price'),
         supabase
           .from('client_subscriptions')
@@ -93,6 +94,7 @@ export default function SubscriptionsPage() {
         currency: p.currency ?? 'MXN',
         interval: p.interval ?? 'monthly',
         stripePriceId: p.stripe_price_id ?? null,
+        isActive: p.is_active ?? true,
       })),
     )
     setClients((clientsData ?? []).map((c: any) => ({ id: c.id, fullName: c.full_name ?? '' })))
@@ -175,6 +177,25 @@ export default function SubscriptionsPage() {
     toast.success('Estado de suscripción actualizado')
   }
 
+  const togglePlanVisibility = async (planId: string) => {
+    const plan = localPlans.find((p) => p.id === planId)
+    if (!plan) return
+    const newStatus = !plan.isActive
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('subscription_plans')
+      .update({ is_active: newStatus })
+      .eq('id', planId)
+    if (error) {
+      toast.error('Error al actualizar el plan')
+      return
+    }
+    setLocalPlans((prev) =>
+      prev.map((p) => (p.id === planId ? { ...p, isActive: newStatus } : p)),
+    )
+    toast.success(newStatus ? 'Plan visible para clientes' : 'Plan oculto para clientes')
+  }
+
   return (
     <div className="space-y-8">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -238,7 +259,7 @@ export default function SubscriptionsPage() {
             <div>
               <h2 className="text-2xl font-bold tracking-tight">Planes</h2>
               <p className="text-muted-foreground">
-                Planes sincronizados desde Stripe · {localPlans.length} activos
+                Planes sincronizados desde Stripe · {localPlans.filter(p => p.isActive).length} visibles de {localPlans.length}
               </p>
             </div>
             <div className="flex gap-2">
@@ -288,12 +309,18 @@ export default function SubscriptionsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {localPlans.map((plan) => (
-                <Card key={plan.id}>
+                <Card key={plan.id} className={!plan.isActive ? 'opacity-60' : ''}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{plan.name}</CardTitle>
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                        Activo
+                      <Badge
+                        variant="outline"
+                        className={plan.isActive
+                          ? "bg-green-50 text-green-700 border-green-200 text-xs"
+                          : "bg-gray-100 text-gray-600 border-gray-200 text-xs"
+                        }
+                      >
+                        {plan.isActive ? 'Visible' : 'Oculto'}
                       </Badge>
                     </div>
                     {plan.description && (
@@ -309,16 +336,29 @@ export default function SubscriptionsPage() {
                         {plan.currency}{intervalLabel(plan.interval)}
                       </span>
                     </div>
-                    {plan.stripePriceId && (
-                      <a
-                        href={`https://dashboard.stripe.com/prices/${plan.stripePriceId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex w-full items-center justify-center gap-1 rounded-[15px] border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => togglePlanVisibility(plan.id)}
+                        className="w-full"
                       >
-                        <ExternalLink className="h-3 w-3" />Ver en Stripe
-                      </a>
-                    )}
+                        {plan.isActive
+                          ? <><ToggleRight className="mr-1.5 h-4 w-4 text-green-600" />Ocultar a clientes</>
+                          : <><ToggleLeft className="mr-1.5 h-4 w-4" />Mostrar a clientes</>
+                        }
+                      </Button>
+                      {plan.stripePriceId && (
+                        <a
+                          href={`https://dashboard.stripe.com/prices/${plan.stripePriceId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex w-full items-center justify-center gap-1 rounded-[15px] border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+                        >
+                          <ExternalLink className="h-3 w-3" />Ver en Stripe
+                        </a>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}

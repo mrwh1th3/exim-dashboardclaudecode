@@ -25,6 +25,11 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session
+        await handleCheckoutCompleted(session)
+        break
+      }
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
@@ -98,22 +103,109 @@ async function handleSubscriptionUpsert(subscription: Stripe.Subscription & { cu
     active: 'active',
     past_due: 'past_due',
     canceled: 'cancelled',
-    incomplete: 'inactive',
+    incomplete: 'pending',
+    incomplete_expired: 'cancelled',
     unpaid: 'past_due',
+    trialing: 'active',
   }
 
-  await adminClient.from('client_subscriptions').upsert({
-    client_id: profile.id,
-    plan_id: plan.id,
-    status: statusMap[subscription.status] ?? 'inactive',
-    stripe_subscription_id: subscription.id,
-    current_period_start: subscription.current_period_start
-      ? new Date(subscription.current_period_start * 1000).toISOString()
-      : null,
-    current_period_end: subscription.current_period_end
-      ? new Date(subscription.current_period_end * 1000).toISOString()
-      : null,
-  }, { onConflict: 'stripe_subscription_id' })
+  const newStatus = statusMap[subscription.status] ?? 'inactive'
+
+  // First, check if there's already a subscription with this stripe_subscription_id
+  const { data: existingByStripe } = await adminClient
+    .from('client_subscriptions')
+    .select('id')
+    .eq('stripe_subscription_id', subscription.id)
+    .maybeSingle()
+
+  if (existingByStripe) {
+    // Update existing subscription
+    await adminClient
+      .from('client_subscriptions')
+      .update({
+        status: newStatus,
+        current_period_start: subscription.current_period_start
+          ? new Date(subscription.current_period_start * 1000).toISOString()
+          : null,
+        current_period_end: subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : null,
+      })
+      .eq('id', existingByStripe.id)
+    return
+  }
+
+  // Check if there's a pending subscription for this client + plan (waiting for payment)
+  const { data: pendingSub } = await adminClient
+    .from('client_subscriptions')
+    .select('id')
+    .eq('client_id', profile.id)
+    .eq('plan_id', plan.id)
+    .eq('status', 'pending')
+    .maybeSingle()
+
+  if (pendingSub) {
+    // Activate the pending subscription and link it to Stripe
+    await adminClient
+      .from('client_subscriptions')
+      .update({
+        status: newStatus,
+        stripe_subscription_id: subscription.id,
+        current_period_start: subscription.current_period_start
+          ? new Date(subscription.current_period_start * 1000).toISOString()
+          : null,
+        current_period_end: subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : null,
+      })
+      .eq('id', pendingSub.id)
+  } else {
+    // No pending subscription - create a new one
+    await adminClient.from('client_subscriptions').insert({
+      client_id: profile.id,
+      plan_id: plan.id,
+      status: newStatus,
+      stripe_subscription_id: subscription.id,
+      current_period_start: subscription.current_period_start
+        ? new Date(subscription.current_period_start * 1000).toISOString()
+        : null,
+      current_period_end: subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null,
+    })
+  }
+}
+
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  // Get metadata from session
+  const clientId = session.metadata?.client_id
+  const planId = session.metadata?.plan_id
+  const subscriptionId = session.subscription as string | null
+
+  if (!clientId || !planId || !subscriptionId) return
+
+  // Find the pending subscription for this client and plan
+  const { data: pendingSub } = await adminClient
+    .from('client_subscriptions')
+    .select('id')
+    .eq('client_id', clientId)
+    .eq('plan_id', planId)
+    .eq('status', 'pending')
+    .maybeSingle()
+
+  if (pendingSub) {
+    // Activate the pending subscription and link it to Stripe
+    await adminClient
+      .from('client_subscriptions')
+      .update({
+        status: 'active',
+        stripe_subscription_id: subscriptionId,
+      })
+      .eq('id', pendingSub.id)
+  } else {
+    // No pending subscription found - the handleSubscriptionUpsert will create it
+    // This handles the case where checkout was done without a pending subscription
+  }
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice & { subscription?: string | null }) {

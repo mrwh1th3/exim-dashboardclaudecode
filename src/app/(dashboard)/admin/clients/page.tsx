@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Trash2, Edit } from 'lucide-react'
+import { Plus, Search, Trash2, Edit, Globe, Share2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -16,14 +17,28 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
+interface FlowTemplate {
+  id: string
+  name: string
+  type: 'web' | 'social'
+}
+
+interface SubscriptionPlan {
+  id: string
+  name: string
+  price: number
+  currency: string
+  interval: string
+}
+
 interface ClientRow {
   id: string
   email: string
   fullName: string
   companyName?: string
   isActive: boolean
-  serviceType?: string
-  flowTemplateId?: string
+  serviceType?: 'web' | 'social' | 'both'
+  flowTemplateIds: string[]
   subscriptionPlanId?: string
 }
 
@@ -38,36 +53,49 @@ export default function ClientsListPage() {
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null)
   const [editName, setEditName] = useState('')
   const [editCompany, setEditCompany] = useState('')
-  const [editFlowId, setEditFlowId] = useState('')
+  const [editServiceType, setEditServiceType] = useState<'web' | 'social' | 'both' | ''>('')
+  const [editFlowIds, setEditFlowIds] = useState<string[]>([])
   const [editPlanId, setEditPlanId] = useState('')
 
-  const [flowTemplates, setFlowTemplates] = useState<any[]>([])
-  const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([])
+  const [flowTemplates, setFlowTemplates] = useState<FlowTemplate[]>([])
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([])
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
       const [{ data: profiles }, { data: flows }, { data: templates }, { data: subscriptions }, { data: plansData }] = await Promise.all([
-        supabase.from('profiles').select('id, email, full_name, company_name, is_active').eq('role', 'client').order('full_name'),
+        supabase.from('profiles').select('id, email, full_name, company_name, is_active, service_type').eq('role', 'client').order('full_name'),
         supabase.from('client_flows').select('client_id, flow_template_id'),
         supabase.from('flow_templates').select('id, name, type'),
         supabase.from('client_subscriptions').select('client_id, plan_id'),
-        supabase.from('subscription_plans').select('id, name, status').eq('status', 'active'),
+        supabase.from('subscription_plans').select('id, name, price, currency, interval').eq('is_active', true),
       ])
 
-      setFlowTemplates(templates ?? [])
-      setSubscriptionPlans(plansData ?? [])
+      setFlowTemplates((templates ?? []).map((t: any) => ({ id: t.id, name: t.name, type: t.type })))
+      setSubscriptionPlans((plansData ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        currency: p.currency ?? 'MXN',
+        interval: p.interval ?? 'monthly'
+      })))
 
-      const flowMap = new Map((flows ?? []).map((f: any) => [f.client_id, f.flow_template_id]))
-      const templateMap = new Map((templates ?? []).map((t: any) => [t.id, t.type]))
+      // Build a map of client_id -> array of flow_template_ids
+      const flowMap = new Map<string, string[]>()
+      ;(flows ?? []).forEach((f: any) => {
+        const existing = flowMap.get(f.client_id) || []
+        flowMap.set(f.client_id, [...existing, f.flow_template_id])
+      })
+
       const planMap = new Map((subscriptions ?? []).map((s: any) => [s.client_id, s.plan_id]))
 
       setClients(
         (profiles ?? []).map((p: any) => {
-          const flowTemplateId = flowMap.get(p.id)
+          const flowTemplateIds = flowMap.get(p.id) || []
           const planId = planMap.get(p.id)
-          const templateType = flowTemplateId ? templateMap.get(flowTemplateId) : undefined
-          const serviceType = templateType === 'web' ? 'Web' : templateType === 'social' ? 'Redes Sociales' : templateType === 'both' ? 'Ambos' : undefined
+
+          // Use service_type from profile, or derive from flows if not set
+          let serviceType = p.service_type as 'web' | 'social' | 'ambos' | undefined
 
           return {
             id: p.id,
@@ -76,7 +104,7 @@ export default function ClientsListPage() {
             companyName: p.company_name ?? undefined,
             isActive: p.is_active ?? true,
             serviceType,
-            flowTemplateId,
+            flowTemplateIds,
             subscriptionPlanId: planId,
           }
         })
@@ -109,9 +137,18 @@ export default function ClientsListPage() {
     setEditingClient(client)
     setEditName(client.fullName)
     setEditCompany(client.companyName || '')
-    setEditFlowId(client.flowTemplateId || '')
+    setEditServiceType(client.serviceType || '')
+    setEditFlowIds(client.flowTemplateIds || [])
     setEditPlanId(client.subscriptionPlanId || '')
     setEditDialogOpen(true)
+  }
+
+  function toggleFlowSelection(flowId: string) {
+    setEditFlowIds(prev =>
+      prev.includes(flowId)
+        ? prev.filter(id => id !== flowId)
+        : [...prev, flowId]
+    )
   }
 
   async function handleUpdateClient() {
@@ -121,52 +158,118 @@ export default function ClientsListPage() {
     }
     const supabase = createClient()
 
-    // 1. Update Profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ full_name: editName.trim(), company_name: editCompany.trim() || null })
-      .eq('id', editingClient.id)
+    try {
+      // 1. Update Profile (including service_type)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editName.trim(),
+          company_name: editCompany.trim() || null,
+          service_type: editServiceType || null
+        })
+        .eq('id', editingClient.id)
 
-    if (profileError) { toast.error('Error al actualizar perfil'); return }
-
-    // 2. Upsert Flow
-    if (editFlowId && editFlowId !== 'none') {
-      if (editingClient.flowTemplateId) {
-        await supabase.from('client_flows').update({ flow_template_id: editFlowId, updated_at: new Date().toISOString() }).eq('client_id', editingClient.id)
-      } else {
-        await supabase.from('client_flows').insert({ client_id: editingClient.id, flow_template_id: editFlowId, current_stage: 1, status: 'in_progress' })
+      if (profileError) {
+        console.error('Profile update error:', profileError)
+        toast.error(`Error al actualizar perfil: ${profileError.message}`)
+        return
       }
-    } else if (editingClient.flowTemplateId && editFlowId === 'none') {
-      await supabase.from('client_flows').delete().eq('client_id', editingClient.id)
-    }
 
-    // 3. Upsert Plan
-    if (editPlanId && editPlanId !== 'none') {
-      if (editingClient.subscriptionPlanId) {
-        await supabase.from('client_subscriptions').update({ plan_id: editPlanId, updated_at: new Date().toISOString() }).eq('client_id', editingClient.id)
-      } else {
-        await supabase.from('client_subscriptions').insert({ client_id: editingClient.id, plan_id: editPlanId, status: 'active', current_period_start: new Date().toISOString() })
+      // 2. Sync Flows - Delete removed, add new ones
+      const currentFlowIds = editingClient.flowTemplateIds || []
+      const flowsToRemove = currentFlowIds.filter(id => !editFlowIds.includes(id))
+      const flowsToAdd = editFlowIds.filter(id => !currentFlowIds.includes(id))
+
+      // Remove flows that were unchecked
+      if (flowsToRemove.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('client_flows')
+          .delete()
+          .eq('client_id', editingClient.id)
+          .in('flow_template_id', flowsToRemove)
+
+        if (deleteError) {
+          console.error('Flow delete error:', deleteError)
+          toast.error(`Error al eliminar flujos: ${deleteError.message}`)
+          return
+        }
       }
-    } else if (editingClient.subscriptionPlanId && editPlanId === 'none') {
-      await supabase.from('client_subscriptions').delete().eq('client_id', editingClient.id)
+
+      // Add new flows
+      if (flowsToAdd.length > 0) {
+        const newFlows = flowsToAdd.map(flowId => ({
+          client_id: editingClient.id,
+          flow_template_id: flowId,
+          status: 'not_started'
+        }))
+        const { error: insertError } = await supabase.from('client_flows').insert(newFlows)
+
+        if (insertError) {
+          console.error('Flow insert error:', insertError)
+          toast.error(`Error al asignar flujos: ${insertError.message}`)
+          return
+        }
+      }
+
+      // 3. Upsert Plan
+      if (editPlanId && editPlanId !== 'none') {
+        if (editingClient.subscriptionPlanId) {
+          const { error: updatePlanError } = await supabase
+            .from('client_subscriptions')
+            .update({ plan_id: editPlanId, updated_at: new Date().toISOString() })
+            .eq('client_id', editingClient.id)
+
+          if (updatePlanError) {
+            console.error('Plan update error:', updatePlanError)
+            toast.error(`Error al actualizar plan: ${updatePlanError.message}`)
+            return
+          }
+        } else {
+          const { error: insertPlanError } = await supabase
+            .from('client_subscriptions')
+            .insert({
+              client_id: editingClient.id,
+              plan_id: editPlanId,
+              status: 'active',
+              current_period_start: new Date().toISOString()
+            })
+
+          if (insertPlanError) {
+            console.error('Plan insert error:', insertPlanError)
+            toast.error(`Error al asignar plan: ${insertPlanError.message}`)
+            return
+          }
+        }
+      } else if (editingClient.subscriptionPlanId && editPlanId === 'none') {
+        const { error: deletePlanError } = await supabase
+          .from('client_subscriptions')
+          .delete()
+          .eq('client_id', editingClient.id)
+
+        if (deletePlanError) {
+          console.error('Plan delete error:', deletePlanError)
+          toast.error(`Error al eliminar plan: ${deletePlanError.message}`)
+          return
+        }
+      }
+
+      // Update local state
+      setClients((prev) => prev.map(c => c.id === editingClient.id ? {
+        ...c,
+        fullName: editName.trim(),
+        companyName: editCompany.trim() || undefined,
+        serviceType: editServiceType || undefined,
+        flowTemplateIds: editFlowIds,
+        subscriptionPlanId: editPlanId === 'none' ? undefined : editPlanId,
+      } : c))
+
+      setEditDialogOpen(false)
+      setEditingClient(null)
+      toast.success('Cliente actualizado correctamente')
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      toast.error('Error inesperado al guardar cambios')
     }
-
-    // Prepare updated state
-    const templateType = flowTemplates.find(t => t.id === editFlowId)?.type
-    const serviceType = templateType === 'web' ? 'Web' : templateType === 'social' ? 'Redes Sociales' : templateType === 'both' ? 'Ambos' : undefined
-
-    setClients((prev) => prev.map(c => c.id === editingClient.id ? {
-      ...c,
-      fullName: editName.trim(),
-      companyName: editCompany.trim() || undefined,
-      flowTemplateId: editFlowId === 'none' ? undefined : editFlowId,
-      subscriptionPlanId: editPlanId === 'none' ? undefined : editPlanId,
-      serviceType
-    } : c))
-
-    setEditDialogOpen(false)
-    setEditingClient(null)
-    toast.success('Cliente actualizado correctamente')
   }
 
   return (
@@ -221,7 +324,11 @@ export default function ClientsListPage() {
                   <TableCell>{client.companyName ?? '-'}</TableCell>
                   <TableCell className="text-muted-foreground">{client.email}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{client.serviceType ?? 'Sin servicio'}</Badge>
+                    <Badge variant="outline">
+                      {client.serviceType === 'web' ? 'Web' :
+                       client.serviceType === 'social' ? 'Redes Sociales' :
+                       client.serviceType === 'both' ? 'Ambos' : 'Sin servicio'}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     {client.isActive ? (
@@ -273,12 +380,12 @@ export default function ClientsListPage() {
 
       {/* Dialog: Edit Client */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Cliente</DialogTitle>
             <DialogDescription>Modifica la información general y los servicios asignados a este cliente.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="space-y-2">
               <Label>Nombre Completo</Label>
               <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
@@ -288,31 +395,94 @@ export default function ClientsListPage() {
               <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="space-y-2">
-                <Label>Flujo Onboarding</Label>
-                <Select value={editFlowId || 'none'} onValueChange={setEditFlowId}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar flujo..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin flujo de Onboarding</SelectItem>
-                    {flowTemplates.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Plan de Suscripción</Label>
+            <div className="space-y-2">
+              <Label>Tipo de Servicio</Label>
+              <Select value={editServiceType || 'none'} onValueChange={(v) => setEditServiceType(v === 'none' ? '' : v as 'web' | 'social' | 'both')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar tipo de servicio..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin tipo de servicio</SelectItem>
+                  <SelectItem value="web">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-blue-500" />
+                      <span>Web</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="social">
+                    <div className="flex items-center gap-2">
+                      <Share2 className="h-4 w-4 text-purple-500" />
+                      <span>Redes Sociales</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="both">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-blue-500" />
+                      <Share2 className="h-4 w-4 text-purple-500 -ml-1" />
+                      <span>Ambos</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Flujos de Onboarding</Label>
+              <p className="text-xs text-muted-foreground -mt-1">Selecciona uno o más flujos para asignar al cliente</p>
+              {flowTemplates.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No hay flujos disponibles</p>
+              ) : (
+                <div className="space-y-2 rounded-lg border p-3 max-h-[200px] overflow-y-auto">
+                  {flowTemplates.map((flow) => (
+                    <label
+                      key={flow.id}
+                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                    >
+                      <Checkbox
+                        checked={editFlowIds.includes(flow.id)}
+                        onCheckedChange={() => toggleFlowSelection(flow.id)}
+                      />
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {flow.type === 'web' ? (
+                          <Globe className="h-4 w-4 text-blue-500 shrink-0" />
+                        ) : (
+                          <Share2 className="h-4 w-4 text-purple-500 shrink-0" />
+                        )}
+                        <span className="text-sm font-medium truncate">{flow.name}</span>
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {flow.type === 'web' ? 'Web' : 'Social'}
+                        </Badge>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Plan de Suscripción</Label>
+              {subscriptionPlans.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2 border rounded-lg px-3">No hay planes disponibles. Importa planes desde Stripe en la sección de Suscripciones.</p>
+              ) : (
                 <Select value={editPlanId || 'none'} onValueChange={setEditPlanId}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar plan..." /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar plan..." />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Sin plan de Suscripción</SelectItem>
                     {subscriptionPlans.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>
+                        <div className="flex items-center justify-between gap-4 w-full">
+                          <span className="font-medium">{p.name}</span>
+                          <span className="text-muted-foreground text-xs">
+                            ${p.price.toLocaleString()} {p.currency}/{p.interval === 'monthly' ? 'mes' : 'año'}
+                          </span>
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              )}
             </div>
           </div>
           <DialogFooter>

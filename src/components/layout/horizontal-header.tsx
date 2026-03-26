@@ -192,7 +192,7 @@ async function handleLogout() {
 								</NavigationMenuContent>
 							</NavigationMenuItem>
 
-							{(isClient && hasSocialMedia) && (
+							{(!isClient || (isClient && hasSocialMedia)) && (
 								<NavigationMenuItem>
 									<NavigationMenuTrigger className="bg-transparent">Redes Sociales</NavigationMenuTrigger>
 									<NavigationMenuContent>
@@ -333,10 +333,7 @@ async function handleLogout() {
 							</div>
 
 							{/* Social Navigation */}
-							{(() => {
-								const showSocial = isClient && hasSocialMedia;
-								return showSocial;
-							})() && (
+							{(!isClient || (isClient && hasSocialMedia)) && (
 								<div>
 									<h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
 										Redes Sociales
