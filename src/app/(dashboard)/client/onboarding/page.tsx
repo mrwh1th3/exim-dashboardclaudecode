@@ -321,7 +321,11 @@ export function ClientOnboardingSection() {
     if (existing) {
       await supabase
         .from('form_submissions')
-        .update({ data: formData })
+        .update({ 
+          data: formData,
+          status: 'submitted',
+          submittedAt: new Date().toISOString()
+        })
         .eq('id', existing.id)
     } else {
       const { data: inserted } = await supabase
@@ -332,12 +336,39 @@ export function ClientOnboardingSection() {
           stage_id: selectedStage.id,
           client_id: user.id,
           data: formData,
+          status: 'submitted',
+          submittedAt: new Date().toISOString(),
         })
         .select()
         .single()
       savedId = inserted?.id ?? `sub-${Date.now()}`
     }
 
+    // Mark current stage as completed
+    updateStageProgress(selectedClientFlow.id, selectedStage.id, 'completed')
+
+    // Find and unlock the next stage
+    const currentStageIndex = flowStages.findIndex(stage => stage.id === selectedStage.id)
+    const nextStage = flowStages[currentStageIndex + 1]
+    
+    if (nextStage) {
+      // Check if next stage has dependencies
+      if (!nextStage.dependsOnStageId || 
+          stageProgress.get(nextStage.dependsOnStageId)?.status === 'completed') {
+        updateStageProgress(selectedClientFlow.id, nextStage.id, 'available')
+      }
+    }
+
+    // Check if all stages are completed to mark flow as completed
+    const allStagesCompleted = flowStages.every(stage => 
+      stageProgress.get(stage.id)?.status === 'completed'
+    )
+    
+    if (allStagesCompleted && selectedClientFlow.status !== 'completed') {
+      updateClientFlowStatus(selectedClientFlow.id, 'completed')
+    }
+
+    // Update local state
     const now = new Date().toISOString()
     const updatedSub: FormSubmission = {
       id: savedId ?? `sub-${Date.now()}`,
@@ -356,14 +387,7 @@ export function ClientOnboardingSection() {
       setSubmissions((prev) => [...prev, updatedSub])
     }
 
-    const currentStatus = stageProgress.get(selectedStage.id)?.status
-    if (currentStatus !== 'completed') {
-      updateStageProgress(selectedClientFlow.id, selectedStage.id, 'in_progress')
-    }
-    if (selectedClientFlow.status === 'not_started') {
-      updateClientFlowStatus(selectedClientFlow.id, 'in_progress')
-    }
-    toast.success('Formulario enviado exitosamente')
+    toast.success('Formulario enviado exitosamente - Siguiente etapa desbloqueada')
     setSheetOpen(false)
     setSelectedForm(null)
     setFormData({})

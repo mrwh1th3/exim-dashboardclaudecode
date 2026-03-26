@@ -124,13 +124,60 @@ export default function ClientsListPage() {
 
   async function handleDeleteClient() {
     if (!clientToDelete) return
-    const supabase = createClient()
-    const { error } = await supabase.from('profiles').delete().eq('id', clientToDelete)
-    if (error) { toast.error('Error al eliminar el cliente'); return }
-    setClients((prev) => prev.filter(c => c.id !== clientToDelete))
-    setClientToDelete(null)
-    setDeleteDialogOpen(false)
-    toast.success('Cliente eliminado')
+    
+    try {
+      // Use admin client for proper cascade deletion
+      const { getAdminClient } = await import('@/lib/supabase/admin')
+      const adminClient = getAdminClient()
+      
+      // 1. Delete client flows (this will cascade to stage progress and form submissions)
+      const { error: flowsError } = await adminClient
+        .from('client_flows')
+        .delete()
+        .eq('client_id', clientToDelete)
+      
+      // 2. Delete client subscriptions
+      const { error: subscriptionsError } = await adminClient
+        .from('client_subscriptions')
+        .delete()
+        .eq('client_id', clientToDelete)
+      
+      // 3. Delete client requests
+      const { error: requestsError } = await adminClient
+        .from('requests')
+        .delete()
+        .eq('client_id', clientToDelete)
+      
+      // 4. Delete the profile (using admin client to bypass RLS)
+      const { error: profileError } = await adminClient
+        .from('profiles')
+        .delete()
+        .eq('id', clientToDelete)
+      
+      // 5. Delete the auth user
+      const { error: authError } = await adminClient.auth.admin.deleteUser(clientToDelete)
+      
+      if (flowsError || subscriptionsError || requestsError || profileError || authError) {
+        console.error('Delete errors:', { 
+          flowsError, 
+          subscriptionsError, 
+          requestsError, 
+          profileError, 
+          authError 
+        })
+        toast.error('Error al eliminar el cliente')
+        return
+      }
+      
+      setClients((prev) => prev.filter(c => c.id !== clientToDelete))
+      setClientToDelete(null)
+      setDeleteDialogOpen(false)
+      toast.success('Cliente y todos sus datos eliminados')
+      
+    } catch (error) {
+      console.error('Delete client error:', error)
+      toast.error('Error al eliminar el cliente')
+    }
   }
 
   function openEditClient(client: ClientRow) {
