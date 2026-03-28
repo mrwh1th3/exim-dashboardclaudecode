@@ -23,14 +23,6 @@ interface FlowTemplate {
   type: 'web' | 'social'
 }
 
-interface SubscriptionPlan {
-  id: string
-  name: string
-  price: number
-  currency: string
-  interval: string
-}
-
 interface ClientRow {
   id: string
   email: string
@@ -39,7 +31,9 @@ interface ClientRow {
   isActive: boolean
   serviceType?: 'web' | 'social' | 'both'
   flowTemplateIds: string[]
-  subscriptionPlanId?: string
+  // Subscription info
+  subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'none'
+  subscriptionPlanName?: string
 }
 
 export default function ClientsListPage() {
@@ -55,30 +49,20 @@ export default function ClientsListPage() {
   const [editCompany, setEditCompany] = useState('')
   const [editServiceType, setEditServiceType] = useState<'web' | 'social' | 'both' | ''>('')
   const [editFlowIds, setEditFlowIds] = useState<string[]>([])
-  const [editPlanId, setEditPlanId] = useState('')
 
   const [flowTemplates, setFlowTemplates] = useState<FlowTemplate[]>([])
-  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([])
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const [{ data: profiles }, { data: flows }, { data: templates }, { data: subscriptions }, { data: plansData }] = await Promise.all([
+      const [{ data: profiles }, { data: flows }, { data: templates }, { data: subscriptions }] = await Promise.all([
         supabase.from('profiles').select('id, email, full_name, company_name, is_active, service_type').eq('role', 'client').order('full_name'),
         supabase.from('client_flows').select('client_id, flow_template_id'),
         supabase.from('flow_templates').select('id, name, type'),
-        supabase.from('client_subscriptions').select('client_id, plan_id'),
-        supabase.from('subscription_plans').select('id, name, price, currency, interval').eq('is_active', true),
+        supabase.from('client_subscriptions').select('client_id, status, subscription_plans(name)'),
       ])
 
       setFlowTemplates((templates ?? []).map((t: any) => ({ id: t.id, name: t.name, type: t.type })))
-      setSubscriptionPlans((plansData ?? []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        currency: p.currency ?? 'MXN',
-        interval: p.interval ?? 'monthly'
-      })))
 
       // Build a map of client_id -> array of flow_template_ids
       const flowMap = new Map<string, string[]>()
@@ -87,15 +71,22 @@ export default function ClientsListPage() {
         flowMap.set(f.client_id, [...existing, f.flow_template_id])
       })
 
-      const planMap = new Map((subscriptions ?? []).map((s: any) => [s.client_id, s.plan_id]))
+      // Build a map of client_id -> subscription info
+      const subscriptionMap = new Map<string, { status: string; planName: string }>()
+      ;(subscriptions ?? []).forEach((s: any) => {
+        subscriptionMap.set(s.client_id, {
+          status: s.status,
+          planName: s.subscription_plans?.name ?? 'Plan desconocido'
+        })
+      })
 
       setClients(
         (profiles ?? []).map((p: any) => {
           const flowTemplateIds = flowMap.get(p.id) || []
-          const planId = planMap.get(p.id)
+          const subInfo = subscriptionMap.get(p.id)
 
-          // Use service_type from profile, or derive from flows if not set
-          let serviceType = p.service_type as 'web' | 'social' | 'ambos' | undefined
+          // Use service_type from profile
+          const serviceType = p.service_type as 'web' | 'social' | 'both' | undefined
 
           return {
             id: p.id,
@@ -105,7 +96,8 @@ export default function ClientsListPage() {
             isActive: p.is_active ?? true,
             serviceType,
             flowTemplateIds,
-            subscriptionPlanId: planId,
+            subscriptionStatus: subInfo?.status as 'active' | 'canceled' | 'past_due' | undefined ?? 'none',
+            subscriptionPlanName: subInfo?.planName,
           }
         })
       )
@@ -186,7 +178,6 @@ export default function ClientsListPage() {
     setEditCompany(client.companyName || '')
     setEditServiceType(client.serviceType || '')
     setEditFlowIds(client.flowTemplateIds || [])
-    setEditPlanId(client.subscriptionPlanId || '')
     setEditDialogOpen(true)
   }
 
@@ -258,48 +249,6 @@ export default function ClientsListPage() {
         }
       }
 
-      // 3. Upsert Plan
-      if (editPlanId && editPlanId !== 'none') {
-        if (editingClient.subscriptionPlanId) {
-          const { error: updatePlanError } = await supabase
-            .from('client_subscriptions')
-            .update({ plan_id: editPlanId, updated_at: new Date().toISOString() })
-            .eq('client_id', editingClient.id)
-
-          if (updatePlanError) {
-            console.error('Plan update error:', updatePlanError)
-            toast.error(`Error al actualizar plan: ${updatePlanError.message}`)
-            return
-          }
-        } else {
-          const { error: insertPlanError } = await supabase
-            .from('client_subscriptions')
-            .insert({
-              client_id: editingClient.id,
-              plan_id: editPlanId,
-              status: 'active',
-              current_period_start: new Date().toISOString()
-            })
-
-          if (insertPlanError) {
-            console.error('Plan insert error:', insertPlanError)
-            toast.error(`Error al asignar plan: ${insertPlanError.message}`)
-            return
-          }
-        }
-      } else if (editingClient.subscriptionPlanId && editPlanId === 'none') {
-        const { error: deletePlanError } = await supabase
-          .from('client_subscriptions')
-          .delete()
-          .eq('client_id', editingClient.id)
-
-        if (deletePlanError) {
-          console.error('Plan delete error:', deletePlanError)
-          toast.error(`Error al eliminar plan: ${deletePlanError.message}`)
-          return
-        }
-      }
-
       // Update local state
       setClients((prev) => prev.map(c => c.id === editingClient.id ? {
         ...c,
@@ -307,7 +256,6 @@ export default function ClientsListPage() {
         companyName: editCompany.trim() || undefined,
         serviceType: editServiceType || undefined,
         flowTemplateIds: editFlowIds,
-        subscriptionPlanId: editPlanId === 'none' ? undefined : editPlanId,
       } : c))
 
       setEditDialogOpen(false)
@@ -354,8 +302,8 @@ export default function ClientsListPage() {
               <TableRow>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Empresa</TableHead>
-                <TableHead>Email</TableHead>
                 <TableHead>Servicio</TableHead>
+                <TableHead>Suscripción</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -367,15 +315,31 @@ export default function ClientsListPage() {
                     <Link href={`/admin/clients/${client.id}`} className="font-medium hover:underline">
                       {client.fullName}
                     </Link>
+                    <div className="text-xs text-muted-foreground">{client.email}</div>
                   </TableCell>
                   <TableCell>{client.companyName ?? '-'}</TableCell>
-                  <TableCell className="text-muted-foreground">{client.email}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
                       {client.serviceType === 'web' ? 'Web' :
                        client.serviceType === 'social' ? 'Redes Sociales' :
                        client.serviceType === 'both' ? 'Ambos' : 'Sin servicio'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {client.subscriptionStatus === 'active' ? (
+                      <div>
+                        <Badge variant="outline" className="border-green-500/40 bg-green-500/10 text-green-400">Activa</Badge>
+                        {client.subscriptionPlanName && (
+                          <div className="text-xs text-muted-foreground mt-1">{client.subscriptionPlanName}</div>
+                        )}
+                      </div>
+                    ) : client.subscriptionStatus === 'canceled' ? (
+                      <Badge variant="outline" className="border-orange-500/40 bg-orange-500/10 text-orange-400">Cancelada</Badge>
+                    ) : client.subscriptionStatus === 'past_due' ? (
+                      <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-400">Vencida</Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-muted-foreground/40 text-muted-foreground">Sin suscripción</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {client.isActive ? (
@@ -506,31 +470,6 @@ export default function ClientsListPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Plan de Suscripción</Label>
-              {subscriptionPlans.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2 border rounded-lg px-3">No hay planes disponibles. Importa planes desde Stripe en la sección de Suscripciones.</p>
-              ) : (
-                <Select value={editPlanId || 'none'} onValueChange={setEditPlanId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar plan..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin plan de Suscripción</SelectItem>
-                    {subscriptionPlans.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        <div className="flex items-center justify-between gap-4 w-full">
-                          <span className="font-medium">{p.name}</span>
-                          <span className="text-muted-foreground text-xs">
-                            ${p.price.toLocaleString()} {p.currency}/{p.interval === 'monthly' ? 'mes' : 'año'}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
